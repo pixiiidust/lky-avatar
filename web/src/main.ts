@@ -7,6 +7,14 @@ import {
   type TextStreamReader,
 } from "livekit-client";
 import { TranscriptStore } from "./transcript.ts";
+import {
+  AvatarStateMachine,
+  type AgentEvent,
+  type AgentReportedState,
+  type AvatarIntent,
+} from "./avatar/stateMachine.ts";
+import { RmsLipSync } from "./avatar/lipSync.ts";
+import { createAvatarView, type AvatarView } from "./avatar/Live2DAvatar.ts";
 import "./style.css";
 
 const TOKEN_SERVER_URL: string =
@@ -14,13 +22,49 @@ const TOKEN_SERVER_URL: string =
 
 const TRANSCRIPTION_TOPIC = "lk.transcription";
 
+/** Values LiveKit Agents publishes on the `lk.agent.state` attribute. */
+const AGENT_STATES: ReadonlySet<string> = new Set([
+  "initializing",
+  "idle",
+  "listening",
+  "thinking",
+  "speaking",
+] satisfies AgentReportedState[]);
+
 const connectBtn = document.querySelector<HTMLButtonElement>("#connect-btn")!;
 const statusEl = document.querySelector<HTMLSpanElement>("#status")!;
 const transcriptEl = document.querySelector<HTMLOListElement>("#transcript")!;
 const audioSink = document.querySelector<HTMLDivElement>("#audio-sink")!;
+const avatarStage = document.querySelector<HTMLDivElement>("#avatar-stage")!;
+const avatarStatusEl = document.querySelector<HTMLParagraphElement>("#avatar-status")!;
+const demoPanel = document.querySelector<HTMLElement>("#demo-panel")!;
 
 const transcript = new TranscriptStore();
 let room: Room | null = null;
+
+// --- Avatar: state machine + renderer + played-audio lip sync -------------
+
+const machine = new AvatarStateMachine();
+const lipSync = new RmsLipSync();
+let avatarView: AvatarView | null = null;
+/** Whether the agent is currently audible (drives playback events). */
+let agentAudible = false;
+
+function updateAvatarDom(intent: AvatarIntent): void {
+  avatarStage.dataset.avatarState = intent.state;
+  avatarStatusEl.hidden = intent.statusMessage === null;
+  avatarStatusEl.textContent = intent.statusMessage ?? "";
+}
+
+function applyIntent(intent: AvatarIntent): void {
+  avatarView?.applyIntent(intent);
+  updateAvatarDom(intent);
+}
+
+/** Feed the avatar state machine and apply the resulting intent. */
+function dispatchAvatarEvent(event: AgentEvent): void {
+  applyIntent(machine.handle(event));
+}
 
 function setStatus(state: string, text: string): void {
   statusEl.dataset.state = state;
@@ -92,11 +136,21 @@ function handleTrackSubscribed(
     const el = track.attach();
     el.dataset.trackSid = publication.trackSid;
     audioSink.append(el);
+    // Lip sync analyses the SAME track the visitor hears (spec: mouth is
+    // driven by the RMS of the played audio, never generation-side timing).
+    lipSync.attachTrack(track.mediaStreamTrack);
   }
 }
 
 function handleTrackUnsubscribed(track: RemoteTrack): void {
   track.detach().forEach((el) => el.remove());
+  if (track.kind === Track.Kind.Audio) {
+    lipSync.detach();
+    if (agentAudible) {
+      agentAudible = false;
+      dispatchAvatarEvent({ type: "playback-stopped" });
+    }
+  }
 }
 
 async function connect(): Promise<void> {
@@ -115,6 +169,26 @@ async function connect(): Promise<void> {
         const state = attrs["lk.agent.state"];
         if (state && participant.identity !== room?.localParticipant.identity) {
           setStatus("connected", `Connected — agent ${state}`);
+          if (AGENT_STATES.has(state)) {
+            dispatchAvatarEvent({
+              type: "agent-state",
+              state: state as AgentReportedState,
+            });
+          }
+        }
+      })
+      .on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
+        // "Playback" for the state machine means: agent audio is audible
+        // right now. (The WebRTC <audio> element plays continuously, so its
+        // play/pause events cannot signal turn boundaries.)
+        const audible = speakers.some(
+          (p) => p.identity !== room?.localParticipant.identity,
+        );
+        if (audible !== agentAudible) {
+          agentAudible = audible;
+          dispatchAvatarEvent({
+            type: audible ? "playback-started" : "playback-stopped",
+          });
         }
       });
     room.registerTextStreamHandler(TRANSCRIPTION_TOPIC, (reader, info) => {
@@ -136,6 +210,10 @@ async function connect(): Promise<void> {
   } catch (err) {
     console.error(err);
     setStatus("error", `Failed to connect: ${(err as Error).message}`);
+    dispatchAvatarEvent({
+      type: "connection-error",
+      message: `Connection failed: ${(err as Error).message}`,
+    });
     await teardown();
     connectBtn.textContent = "Connect";
   } finally {
@@ -157,6 +235,11 @@ function onDisconnected(): void {
   connectBtn.textContent = "Connect";
   audioSink.replaceChildren();
   room = null;
+  lipSync.detach();
+  agentAudible = false;
+  // The machine keeps a visible error state through disconnect; a clean
+  // disconnect returns the avatar to idle.
+  dispatchAvatarEvent({ type: "disconnected" });
 }
 
 connectBtn.addEventListener("click", () => {
@@ -166,3 +249,26 @@ connectBtn.addEventListener("click", () => {
     void connect();
   }
 });
+
+// --- Startup: mount the avatar; enter demo mode with ?avatarDemo=1 --------
+
+const demoMode = new URLSearchParams(location.search).get("avatarDemo") === "1";
+
+void (async () => {
+  avatarView = await createAvatarView(avatarStage, { lipSync });
+  applyIntent(machine.intent);
+
+  if (demoMode) {
+    // Keyless demo: fake agent events + generated audio, no LiveKit.
+    connectBtn.disabled = true;
+    setStatus("disconnected", "Avatar demo mode — LiveKit disabled");
+    const { startAvatarDemo } = await import("./avatar/demo.ts");
+    startAvatarDemo({
+      view: avatarView,
+      lipSync,
+      panel: demoPanel,
+      audioSink,
+      onIntent: updateAvatarDom,
+    });
+  }
+})();

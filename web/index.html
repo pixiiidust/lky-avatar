@@ -24,6 +24,18 @@
         <span id="status" data-state="disconnected">Disconnected</span>
       </section>
 
+      <section id="avatar-panel">
+        <!-- Live2D canvas (or the static-image fallback) mounts here. -->
+        <div id="avatar-stage" data-avatar-state="idle"></div>
+        <!-- Visible status message, e.g. the error state's message. -->
+        <p id="avatar-status" role="status" hidden></p>
+      </section>
+
+      <!-- Keyless demo controls; shown only with ?avatarDemo=1 -->
+      <section id="demo-panel" hidden>
+        <h2>Avatar demo (no LiveKit)</h2>
+      </section>
+
       <section id="transcript-panel">
         <h2>Transcript</h2>
         <ol id="transcript" aria-live="polite"></ol>

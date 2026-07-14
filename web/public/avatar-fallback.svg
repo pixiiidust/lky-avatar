@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-label="Static avatar placeholder">
+  <!-- Neutral generated silhouette used when Live2D/WebGL is unavailable. -->
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="35%" r="75%">
+      <stop offset="0%" stop-color="#8a8a8a" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#8a8a8a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="240" height="240" fill="url(#bg)"/>
+  <g fill="#7d7d7d" opacity="0.9">
+    <circle cx="120" cy="88" r="42"/>
+    <path d="M120 138c-44 0-74 26-80 62a6 6 0 0 0 6 7h148a6 6 0 0 0 6-7c-6-36-36-62-80-62z"/>
+  </g>
+</svg>
