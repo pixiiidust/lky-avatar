@@ -100,12 +100,22 @@ def load_model():
     return tokenizer, model, load_s
 
 
+def few_shot_turns() -> list:
+    """Production exemplar turns from the voice agent (single source of truth)."""
+    sys.path.insert(0, str(REPO_ROOT / "services" / "voice_agent"))
+    from persona_prompt import FEW_SHOT_TURNS
+    return list(FEW_SHOT_TURNS)
+
+
 def generate_answer(tokenizer, model, system: str, question: str,
-                    max_new_tokens: int, seed: int) -> dict:
+                    max_new_tokens: int, seed: int,
+                    exemplars: list | None = None) -> dict:
     sampling = persona.sampling_defaults()
+    messages = ([{"role": "system", "content": system}]
+                + (exemplars or [])
+                + [{"role": "user", "content": question}])
     prompt = tokenizer.apply_chat_template(
-        [{"role": "system", "content": system},
-         {"role": "user", "content": question}],
+        messages,
         tokenize=False, add_generation_prompt=True,
         enable_thinking=sampling.pop("enable_thinking"))
     ids = tokenizer(prompt, return_tensors="pt").to("cuda")
@@ -152,7 +162,9 @@ def run_variant(variant: str, questions: list, tokenizer, model,
         print(f"[{variant} {i + 1}/{len(qs)}] {q['id']} ({q['category']})...",
               flush=True)
         gen = generate_answer(tokenizer, model, system, q["question"],
-                              args.max_new_tokens, seed)
+                              args.max_new_tokens, seed,
+                              exemplars=(few_shot_turns()
+                                         if args.with_exemplars else None))
         print(f"    {gen['completion_tokens']} tok in "
               f"{gen['generation_seconds']}s "
               f"({gen['tokens_per_second']} tok/s)")
@@ -211,6 +223,10 @@ def main() -> None:
     ap.add_argument("--questions", default="",
                     help="comma-separated question ids to run (e.g. "
                          "q18,q19,q20 for the adversarial subset)")
+    ap.add_argument("--with-exemplars", action="store_true",
+                    help="seed the voice agent's FEW_SHOT_TURNS before the "
+                         "question, mirroring production ('variant D' = "
+                         "C + exemplars)")
     ap.add_argument("--with-style-policy", action="store_true",
                     help="append the voice agent's spoken-style policy, "
                          "mirroring production instructions")

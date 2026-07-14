@@ -40,10 +40,27 @@ def test_variant_b_is_a_plus_exact_awareness_sentence(date):
     assert b.startswith(persona.system_prompt(date))  # base never reworded
 
 
-def test_defaults_are_sim_date_and_variant_b():
+def test_defaults_are_sim_date_and_variant_c():
     assert DEFAULT_SIM_DATE == "2026-07-13"
-    assert DEFAULT_VARIANT == "B"
-    assert persona_system_prompt() == persona_system_prompt("2026-07-13", "B")
+    assert DEFAULT_VARIANT == "C"  # production = C prompt + FEW_SHOT_TURNS
+    assert persona_system_prompt() == persona_system_prompt("2026-07-13", "C")
+
+
+def test_few_shot_exemplars_shape_and_content():
+    from persona_prompt import FEW_SHOT_TURNS
+
+    # Alternating user/assistant pairs, non-empty content.
+    assert len(FEW_SHOT_TURNS) % 2 == 0 and len(FEW_SHOT_TURNS) >= 4
+    for i, turn in enumerate(FEW_SHOT_TURNS):
+        assert turn["role"] == ("user" if i % 2 == 0 else "assistant")
+        assert turn["content"].strip()
+    # The two validated behaviors (probes D/D2): clarify-first and
+    # premise correction anchored on his death date.
+    assistants = " ".join(
+        t["content"] for t in FEW_SHOT_TURNS if t["role"] == "assistant"
+    )
+    assert "Be precise" in assistants
+    assert "March 2015" in assistants
 
 
 def test_sim_date_yields_present_day_framing():

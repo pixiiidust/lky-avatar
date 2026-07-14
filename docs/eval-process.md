@@ -34,7 +34,7 @@ python scripts/run_timetravel_eval.py --variant all
 # Adversarial subset under the production prompt — the minimum gate for any
 # prompt change:
 python scripts/run_timetravel_eval.py --variant C --questions q18,q19,q20 \
-    --with-style-policy
+    --with-style-policy --with-exemplars   # mirrors production ("variant D")
 ```
 
 Results land in `evals/results/timetravel_<variant>[_probe|_smoke].json` and are
@@ -60,7 +60,7 @@ regression gate).
 | C | A + prompt-v2 paragraph (premise correction, no invented specifics, Socratic clarifying instinct, 2–4 sentence policy) | q20 refusal excellent (13 tokens); **rules alone did not fix q18/q19** — the LoRA follows character, not meta-instructions |
 | D | C + **2 few-shot exemplar turns** (clarify-first; premise-correction) | **Ship candidate.** q19 fixed by imitation ("I was gone by March 2015…"), brevity dramatically improved (q01: 300→80 tok); q18 still fabricates |
 | E | D + 3rd exemplar (meeting/quote refusal) | Backfired: q18 unchanged, q19 regressed into a "when I came back in May 2023" confabulation. Rejected |
-| D2 | D re-run with fresh seeds | Stability check for D's wins (see verdict doc for the outcome) |
+| D2 | D re-run with fresh seeds | **Premise correction held** ("I did not live through it. I read about it afterwards"); q20 revealed as probabilistic — sometimes clean refusal, sometimes a hedged "reconstruction" of a quote. **Confirmed D as production** |
 
 **The two lessons this history encodes:**
 
@@ -68,10 +68,11 @@ regression gate).
    exchanges far better than it obeys written rules. Behavioral fixes go in the
    few-shot exemplars (`services/voice_agent/persona_prompt.py`), not in ever-longer
    system-prompt paragraphs.
-2. **Known residual limitation:** questions inviting a first-person meeting
-   narrative about a named contemporary figure (q18-class) elicit in-character
-   invented dialogue under *every* variant tested — the "I told him… he said…"
-   pattern is fundamental to the interview training data. This is mitigated by
+2. **Known residual limitation (q18/q20 class):** questions about **named-figure
+   meetings and quotations** elicit fabrication under *every* variant tested —
+   invented "I told him… he said…" dialogue (q18, every seed) and probabilistic
+   quote "reconstruction" (q20, seed-dependent). The pattern is fundamental to
+   the interview training data. This is mitigated by
    product framing (the persistent disclosure: *generated responses are not
    authentic quotations*), not by prompting. Revisit only with retrieval grounding
    (v1.1) or a retrain.

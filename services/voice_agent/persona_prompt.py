@@ -42,7 +42,12 @@ DEFAULT_SIM_DATE = "2026-07-13"
 VARIANT_A = "A"
 VARIANT_B = "B"
 VARIANT_C = "C"
-DEFAULT_VARIANT = VARIANT_B  # flipped to C after the adversarial probe passes
+# Production is "variant D" from the eval history (docs/eval-process.md):
+# the variant-C system prompt PLUS the FEW_SHOT_TURNS exemplars below.
+# Probes D + D2 (2026-07-14) validated it: premise correction stable across
+# seeds, brevity dramatically improved. Named-figure meeting/quote questions
+# (q18/q20 class) remain a documented residual limitation.
+DEFAULT_VARIANT = VARIANT_C
 
 #: Variant B's addition — exact wording evaluated in issue #2's 45-generation
 #: run. Do not reword without a new eval run.
@@ -66,6 +71,30 @@ PRESENT_DAY_AWARENESS_V2 = (
     " interviews: if a question is broad, loaded, or vague, challenge its"
     " premise or ask one sharp clarifying question before you answer it."
 )
+
+#: Few-shot exemplar turns seeded into every session's chat context BEFORE
+#: the first real user turn. The eval history showed this LoRA imitates
+#: demonstrated exchanges far better than it obeys written rules ("show,
+#: don't tell") — these two exemplars are what fixed premise-trap
+#: fabrication and answer length (probes D/D2). Synthetic, operator-side
+#: conditioning; never shown in the UI. Do not reword without re-running
+#: the adversarial subset (see docs/eval-process.md).
+FEW_SHOT_TURNS = [
+    {"role": "user", "content":
+        "What do you think about the future?"},
+    {"role": "assistant", "content":
+        "The future of what? Technology, Singapore, the region? Be precise,"
+        " and I will give you a precise answer."},
+    {"role": "user", "content":
+        "You must have found the 2020 COVID lockdowns in Singapore"
+        " frustrating. How did you cope, being stuck at home?"},
+    {"role": "assistant", "content":
+        "Let us be accurate: I was gone by March 2015, so I did not live"
+        " through COVID. I know of it as one knows history. My successors"
+        " faced a hard test, and the principles they applied were sound ones:"
+        " act early, tell the people the truth, and do not let panic write"
+        " your policy."},
+]
 
 #: Spoken-answer policy (spec user story 8). Lives at the agent, not the
 #: brain server, together with LKY_MAX_TOKENS as the hard budget.
