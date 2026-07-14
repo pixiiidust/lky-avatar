@@ -231,3 +231,11 @@ cd services/token_server; .venv\Scripts\python -m pytest -q; cd ../..
 cd services/voice_agent;  .venv\Scripts\python -m pytest -q; cd ../..
 cd web; npm run build; cd ..
 ```
+
+## Hard-won lessons
+
+Real-time voice AI looks like a model problem but is mostly a systems
+problem. The problems this project actually hit — the 10-second replies,
+the interruptions that didn't interrupt, the echoey clone, where the
+latency actually lives — and how each was solved:
+[`docs/faq.md`](docs/faq.md).
