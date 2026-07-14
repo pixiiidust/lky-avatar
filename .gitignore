@@ -19,6 +19,10 @@ dist/
 assets/voices/*
 !assets/voices/README.md
 !assets/voices/.gitkeep
+# ...but objective blind-test scores are small JSON evidence (issue #7)
+!assets/voices/blind-test/
+assets/voices/blind-test/*
+!assets/voices/blind-test/scores.json
 *.wav
 *.mp3
 *.flac
