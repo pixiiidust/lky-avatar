@@ -69,6 +69,12 @@ from livekit.agents import (  # noqa: E402
     NOT_GIVEN,
     Agent,
     AgentSession,
+)
+from livekit.agents.voice.agent_session import (  # noqa: E402
+    InterruptionOptions,
+    TurnHandlingOptions,
+)
+from livekit.agents import (  # noqa: E402
     APIConnectOptions,
     JobContext,
     JobProcess,
@@ -222,14 +228,23 @@ async def entrypoint(ctx: JobContext) -> None:
             model=config.tts_model,
             api_key=config.deepgram_api_key,
         ),
-        # Barge-in: on by default in the SDK; kept explicit because the spec
-        # treats interruption as a core requirement. Sensitivity tuned via
-        # env after live-session feedback (see AgentConfig): the SDK's 0.5s
-        # minimum-speech gate made short interjections miss.
-        allow_interruptions=True,
-        min_interruption_duration=config.interrupt_min_duration,
-        false_interruption_timeout=config.false_interrupt_timeout,
-        resume_false_interruption=config.resume_false_interruption,
+        # Barge-in: the spec treats interruption as a core requirement.
+        # mode="vad" (default here) DISABLES the SDK's adaptive interruption
+        # classifier — live sessions on 2026-07-14 showed it classifying the
+        # operator's "wait wait / no no / stop stop" as backchannels
+        # (num_backchannels>0, num_interruptions=0 in the metrics log) and
+        # letting the agent talk over them. Plain VAD interruption + the
+        # tuned min_duration is the correct behavior for this product:
+        # any sustained user speech stops LKY, full stop.
+        turn_handling=TurnHandlingOptions(
+            interruption=InterruptionOptions(
+                enabled=True,
+                mode=config.interrupt_mode,
+                min_duration=config.interrupt_min_duration,
+                false_interruption_timeout=config.false_interrupt_timeout,
+                resume_false_interruption=config.resume_false_interruption,
+            ),
+        ),
     )
 
     # Issue #4: measure end-of-speech -> first-audio latency per turn.

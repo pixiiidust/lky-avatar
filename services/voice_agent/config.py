@@ -62,6 +62,10 @@ class AgentConfig:
     interrupt_min_duration: float
     false_interrupt_timeout: float
     resume_false_interruption: bool
+    # "vad" = plain voice-activity interruption (any sustained speech stops
+    # the agent). "adaptive" = the SDK's ML classifier, which live-tested as
+    # eating short interjections ("stop stop") as backchannels — see agent.py.
+    interrupt_mode: str
 
     @classmethod
     def from_env(cls, env: Mapping[str, str]) -> "AgentConfig":
@@ -89,6 +93,12 @@ class AgentConfig:
             resume_false_interruption=(
                 env.get("LKY_RESUME_FALSE_INTERRUPT", "true").strip().lower()
                 != "false"
+            ),
+            interrupt_mode=(
+                "adaptive"
+                if env.get("LKY_INTERRUPT_MODE", "").strip().lower()
+                == "adaptive"
+                else "vad"
             ),
         )
 
