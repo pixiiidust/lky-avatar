@@ -58,14 +58,26 @@ VARIANT_B_SUFFIX = (
 )
 
 
-def build_system_prompt(variant: str, present_date: str) -> str:
+def build_system_prompt(variant: str, present_date: str,
+                        with_style_policy: bool = False) -> str:
     if variant == "A":
-        return persona.system_prompt(present_date)
-    if variant == "B":
-        return persona.system_prompt(present_date) + VARIANT_B_SUFFIX
-    if variant == "control":
-        return persona.system_prompt(CONTROL_DATE)
-    raise ValueError(f"unknown variant: {variant}")
+        prompt = persona.system_prompt(present_date)
+    elif variant == "B":
+        prompt = persona.system_prompt(present_date) + VARIANT_B_SUFFIX
+    elif variant == "C":
+        # Prompt v2 lives with the voice agent — single source of truth.
+        sys.path.insert(0, str(REPO_ROOT / "services" / "voice_agent"))
+        from persona_prompt import PRESENT_DAY_AWARENESS_V2
+        prompt = persona.system_prompt(present_date) + PRESENT_DAY_AWARENESS_V2
+    elif variant == "control":
+        prompt = persona.system_prompt(CONTROL_DATE)
+    else:
+        raise ValueError(f"unknown variant: {variant}")
+    if with_style_policy:
+        sys.path.insert(0, str(REPO_ROOT / "services" / "voice_agent"))
+        from persona_prompt import SPOKEN_STYLE_POLICY
+        prompt = prompt + "\n\n" + SPOKEN_STYLE_POLICY
+    return prompt
 
 
 def load_model():
@@ -88,12 +100,22 @@ def load_model():
     return tokenizer, model, load_s
 
 
+def few_shot_turns() -> list:
+    """Production exemplar turns from the voice agent (single source of truth)."""
+    sys.path.insert(0, str(REPO_ROOT / "services" / "voice_agent"))
+    from persona_prompt import FEW_SHOT_TURNS
+    return list(FEW_SHOT_TURNS)
+
+
 def generate_answer(tokenizer, model, system: str, question: str,
-                    max_new_tokens: int, seed: int) -> dict:
+                    max_new_tokens: int, seed: int,
+                    exemplars: list | None = None) -> dict:
     sampling = persona.sampling_defaults()
+    messages = ([{"role": "system", "content": system}]
+                + (exemplars or [])
+                + [{"role": "user", "content": question}])
     prompt = tokenizer.apply_chat_template(
-        [{"role": "system", "content": system},
-         {"role": "user", "content": question}],
+        messages,
         tokenize=False, add_generation_prompt=True,
         enable_thinking=sampling.pop("enable_thinking"))
     ids = tokenizer(prompt, return_tensors="pt").to("cuda")
@@ -117,13 +139,17 @@ def generate_answer(tokenizer, model, system: str, question: str,
 
 def run_variant(variant: str, questions: list, tokenizer, model,
                 args, load_s: float) -> None:
-    system = build_system_prompt(variant, args.date)
+    system = build_system_prompt(variant, args.date,
+                                 with_style_policy=args.with_style_policy)
     if variant == "control":
         data = json.loads(QUESTIONS_PATH.read_text(encoding="utf-8"))
         control_ids = set(data["control_question_ids"])
         qs = [q for q in questions if q["id"] in control_ids]
     else:
         qs = questions
+    if args.questions:
+        wanted = {w.strip() for w in args.questions.split(",")}
+        qs = [q for q in qs if q["id"] in wanted]
     if args.limit:
         qs = qs[:args.limit]
 
@@ -136,7 +162,9 @@ def run_variant(variant: str, questions: list, tokenizer, model,
         print(f"[{variant} {i + 1}/{len(qs)}] {q['id']} ({q['category']})...",
               flush=True)
         gen = generate_answer(tokenizer, model, system, q["question"],
-                              args.max_new_tokens, seed)
+                              args.max_new_tokens, seed,
+                              exemplars=(few_shot_turns()
+                                         if args.with_exemplars else None))
         print(f"    {gen['completion_tokens']} tok in "
               f"{gen['generation_seconds']}s "
               f"({gen['tokens_per_second']} tok/s)")
@@ -179,7 +207,8 @@ def run_variant(variant: str, questions: list, tokenizer, model,
         "results": results,
     }
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    suffix = "_smoke" if args.limit else ""
+    suffix = ("_probe" if args.questions
+              else "_smoke" if args.limit else "")
     path = RESULTS_DIR / f"timetravel_{variant}{suffix}.json"
     path.write_text(json.dumps(out, indent=2, ensure_ascii=False) + "\n",
                     encoding="utf-8")
@@ -189,8 +218,18 @@ def run_variant(variant: str, questions: list, tokenizer, model,
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--variant", choices=["A", "B", "control", "all"],
+    ap.add_argument("--variant", choices=["A", "B", "C", "control", "all"],
                     default="all")
+    ap.add_argument("--questions", default="",
+                    help="comma-separated question ids to run (e.g. "
+                         "q18,q19,q20 for the adversarial subset)")
+    ap.add_argument("--with-exemplars", action="store_true",
+                    help="seed the voice agent's FEW_SHOT_TURNS before the "
+                         "question, mirroring production ('variant D' = "
+                         "C + exemplars)")
+    ap.add_argument("--with-style-policy", action="store_true",
+                    help="append the voice agent's spoken-style policy, "
+                         "mirroring production instructions")
     ap.add_argument("--limit", type=int, default=0,
                     help="run only the first N questions (smoke test); "
                          "output gets a _smoke suffix")

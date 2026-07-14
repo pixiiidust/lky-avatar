@@ -89,7 +89,7 @@ from brain_status import (  # noqa: E402
 )
 from config import AgentConfig, explain_unusable, unusable_keys  # noqa: E402
 from latency import LatencyTracker  # noqa: E402
-from persona_prompt import build_instructions  # noqa: E402
+from persona_prompt import FEW_SHOT_TURNS, build_instructions  # noqa: E402
 
 logger = logging.getLogger("lky.agent")
 
@@ -126,7 +126,13 @@ def build_llm(config: AgentConfig) -> openai.LLM:
 
 
 class LKYAgent(Agent):
-    """The persona agent: LKY instructions + graceful brain-failure handling."""
+    """The persona agent: LKY instructions + graceful brain-failure handling.
+
+    Every session's chat context is seeded with the FEW_SHOT_TURNS exemplars
+    before the first real user turn — the LoRA imitates demonstrated behavior
+    (premise correction, clarify-first, brevity) far better than it obeys
+    written rules; see docs/eval-process.md, probes D/D2.
+    """
 
     def __init__(
         self,
@@ -134,7 +140,10 @@ class LKYAgent(Agent):
         instructions: str,
         report_status: StatusReporter | None = None,
     ) -> None:
-        super().__init__(instructions=instructions)
+        seeded = llm_types.ChatContext.empty()
+        for turn in FEW_SHOT_TURNS:
+            seeded.add_message(role=turn["role"], content=turn["content"])
+        super().__init__(instructions=instructions, chat_ctx=seeded)
         self._report_status = report_status
 
     async def _publish_status(self, status: str) -> None:
@@ -214,8 +223,13 @@ async def entrypoint(ctx: JobContext) -> None:
             api_key=config.deepgram_api_key,
         ),
         # Barge-in: on by default in the SDK; kept explicit because the spec
-        # treats interruption as a core requirement.
+        # treats interruption as a core requirement. Sensitivity tuned via
+        # env after live-session feedback (see AgentConfig): the SDK's 0.5s
+        # minimum-speech gate made short interjections miss.
         allow_interruptions=True,
+        min_interruption_duration=config.interrupt_min_duration,
+        false_interruption_timeout=config.false_interrupt_timeout,
+        resume_false_interruption=config.resume_false_interruption,
     )
 
     # Issue #4: measure end-of-speech -> first-audio latency per turn.

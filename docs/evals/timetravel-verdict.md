@@ -61,3 +61,16 @@ persona eval; re-run on any prompt, adapter, or serving-stack change.
 
 `LKY_SIM_DATE=2026-07-13`, `LKY_PROMPT_VARIANT=B` — the shipped default in
 `services/voice_agent` already matches this verdict.
+
+## Addendum (2026-07-14): prompt v2 validated as "variant D"
+
+Probes C, D, E, D2 (results in `evals/results/timetravel_[CDE]*_probe.json`):
+written rules alone (variant C) did not stop premise-trap or meeting fabrication.
+**Two few-shot exemplar turns** (clarify-first; premise correction anchored on
+March 2015) fixed the premise trap stably across seeds and cut answer length
+sharply; a third exemplar (E) backfired and was rejected. Production is now
+variant-C system prompt + `FEW_SHOT_TURNS` seeded per session
+(`services/voice_agent/persona_prompt.py`). Residual q18/q20-class limitation
+(named-figure meetings/quotes) documented in `docs/eval-process.md`; mitigated by
+the persistent disclosure. The standing adversarial gate runs with
+`--with-exemplars` to mirror production.
