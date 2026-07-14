@@ -71,9 +71,35 @@ A subagent (worktree `.claude/worktrees/agent-a6971746ee7ae3f88`, branch
   Windows: services/*/.venv, web/node_modules — all installed.
 - lky-brain repo (C:\Users\Jamie\lky-brain) is READ-ONLY. Audio/art/weights
   never committed (gitignore enforces).
-- Sibling project **lky-voice** (accent fine-tune, own tracker + GOAL.md) starts
-  in a fresh session AFTER this project's GPU work ends — don't start it here;
-  its integration lands later via lky-avatar's tts_server seam.
+## Parallel session: lky-voice (the big picture)
+
+The operator will run a SECOND orchestrated session for **lky-voice**
+(`C:\Users\Jamie\lky-voice`, tracker github.com/pixiiidust/lky-voice, own
+GOAL.md) — possibly concurrently with you. Know the whole story so the two
+sessions stay coherent:
+
+- **Why it exists:** the zero-shot cloned voice (this repo's #8) has American
+  accent drift. Prompt/reference tuning hit its ceiling — three operator
+  listening rounds settled on chatterbox + `elder_ref_04` + speed 1.0 as the
+  best zero-shot gets (history on issue #8). lky-voice fine-tunes a voice
+  (GPT-SoVITS primary, Chatterbox-LoRA arm) on ~48 min of his real speech to
+  fix the accent properly.
+- **The contract between the projects:** lky-voice changes NOTHING here unless
+  its fine-tuned voice **beats the current baseline in the operator's blind
+  A/B** (their ticket #6). If it wins, integration arrives as its ticket #7 —
+  a PR *into this repo* touching only the `services/tts_server` engine seam,
+  following THIS repo's GOAL.md conventions, and it must watermark GPT-SoVITS
+  output post-hoc (standalone `perth` package) to keep the §9 requirement.
+  Review that PR like any other; the A/B evidence is its acceptance criterion.
+- **Shared resources — coordination rules:** one GPU. Check `nvidia-smi`
+  before loading models; llama-server (~11 GB) + chatterbox (~3.5 GB) already
+  fill the card during live sessions, and lky-voice training runs want the GPU
+  alone. Don't kill processes you didn't start — they may be the other
+  session's. If the operator says "lky-voice is training", defer GPU work.
+  Both sessions must never edit the same repo concurrently: lky-voice only
+  ever touches this repo via its #7 PR.
+- **Don't duplicate its work**: accent complaints from future live sessions get
+  logged on #8 and pointed at lky-voice — no more reference-clip hunting here.
 
 ## Operator's own queue (don't nag, do surface when relevant)
 
