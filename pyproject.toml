@@ -1,0 +1,17 @@
+[project]
+name = "lky-avatar"
+version = "0.1.0"
+description = "Time-traveler LKY reasoning demo: persona module and scripts (services keep their own venvs)"
+requires-python = ">=3.11"
+# Deliberately dependency-light: lky_avatar/ and scripts/ are stdlib-only.
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.setuptools]
+packages = ["lky_avatar"]
