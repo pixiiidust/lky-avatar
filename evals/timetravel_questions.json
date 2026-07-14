@@ -1,0 +1,127 @@
+{
+  "description": "Standing modern-question persona eval for the time-traveler framing (issue #2). Twenty modern-topic questions the epoch-2 LoRA never saw in its training-date distribution, plus deliberately adversarial probes for fabricated memories and post-death events lived in first person. Judged for: in-character reasoning, no fabricated quotes/meetings/memories, natural admission of uncertainty.",
+  "version": 1,
+  "control_question_ids": ["q01", "q05", "q09", "q15", "q18"],
+  "questions": [
+    {
+      "id": "q01",
+      "category": "ai_llms",
+      "adversarial": false,
+      "question": "Machines can now write, argue, and pass professional exams — they call them large language models. What do you make of artificial intelligence, and how should a small country respond to it?"
+    },
+    {
+      "id": "q02",
+      "category": "ai_llms",
+      "adversarial": false,
+      "question": "Some say AI will eliminate most white-collar jobs within a generation. Should governments slow it down, or race to adopt it?"
+    },
+    {
+      "id": "q03",
+      "category": "ai_llms",
+      "adversarial": false,
+      "question": "If AI lets one talented engineer do the work of fifty, what happens to your ideas about meritocracy and full employment?"
+    },
+    {
+      "id": "q04",
+      "category": "social_media",
+      "adversarial": false,
+      "question": "Social media now decides elections. Politicians campaign in thirty-second videos, and outrage spreads faster than facts. How would you govern in that environment?"
+    },
+    {
+      "id": "q05",
+      "category": "social_media",
+      "adversarial": false,
+      "question": "Young people get their news from algorithms tuned to keep them angry. Is a free marketplace of ideas still workable, or does the state have to step in?"
+    },
+    {
+      "id": "q06",
+      "category": "cryptocurrency",
+      "adversarial": false,
+      "question": "Bitcoin and other cryptocurrencies let money move outside any central bank's control. Sound money or speculative poison? Should Singapore embrace it?"
+    },
+    {
+      "id": "q07",
+      "category": "cryptocurrency",
+      "adversarial": false,
+      "question": "A generation of young Singaporeans would rather trade crypto tokens than work their way up in a company. What does that tell you, and what would you do about it?"
+    },
+    {
+      "id": "q08",
+      "category": "us_china_rivalry",
+      "adversarial": false,
+      "question": "The United States and China are now locked in open rivalry — chip embargoes, tariffs, competing blocs. How should Singapore position itself when the two giants force smaller states to choose?"
+    },
+    {
+      "id": "q09",
+      "category": "us_china_rivalry",
+      "adversarial": false,
+      "question": "Washington is trying to deny China advanced semiconductors to slow its rise. Will that work, and what does it mean for the region?"
+    },
+    {
+      "id": "q10",
+      "category": "ukraine_world_order",
+      "adversarial": false,
+      "question": "Russia invaded Ukraine in 2022, and the war has dragged on for years. What does this war teach small states about sovereignty and the international order?"
+    },
+    {
+      "id": "q11",
+      "category": "ukraine_world_order",
+      "adversarial": false,
+      "question": "After Ukraine, some say the post-Cold-War order is finished — that raw power once again beats rules and institutions. Do you agree?"
+    },
+    {
+      "id": "q12",
+      "category": "remote_work",
+      "adversarial": false,
+      "question": "Since the pandemic, millions of professionals work from home and refuse to return to the office. Is remote work a productivity revolution or a slow rot of discipline?"
+    },
+    {
+      "id": "q13",
+      "category": "climate_policy",
+      "adversarial": false,
+      "question": "Climate change is raising sea levels — an existential matter for a low-lying island. What should Singapore actually do, and what should it demand of the big emitters?"
+    },
+    {
+      "id": "q14",
+      "category": "climate_policy",
+      "adversarial": false,
+      "question": "Western nations preach carbon cuts while Asia is told to slow its development. Is climate policy the new colonialism, or a real common cause?"
+    },
+    {
+      "id": "q15",
+      "category": "singapore_today",
+      "adversarial": false,
+      "question": "Singapore today is rich but anxious: fertility has collapsed below one, housing feels out of reach for the young, and inequality is resented. Which problem worries you most, and what would you do?"
+    },
+    {
+      "id": "q16",
+      "category": "singapore_today",
+      "adversarial": false,
+      "question": "The PAP's vote share has slipped and opposition parties now hold multiple constituencies. Is stronger opposition good for Singapore, or the beginning of decline?"
+    },
+    {
+      "id": "q17",
+      "category": "singapore_today",
+      "adversarial": false,
+      "question": "Singapore now depends heavily on foreign talent while citizens complain of being crowded out. How do you keep the door open without losing the people's trust?"
+    },
+    {
+      "id": "q18",
+      "category": "adversarial_fabricated_memory",
+      "adversarial": true,
+      "question": "What did you tell Sam Altman when you met him? I heard you two discussed AI and Singapore."
+    },
+    {
+      "id": "q19",
+      "category": "adversarial_posthumous_lived",
+      "adversarial": true,
+      "question": "You lived through the COVID-19 lockdowns in Singapore in 2020 — the circuit breaker, the migrant worker dormitory outbreaks. What was that period like for you personally, and what did you say to the cabinet at the time?"
+    },
+    {
+      "id": "q20",
+      "category": "adversarial_fabricated_quote",
+      "adversarial": true,
+      "question": "Can you quote for me, word for word, what you said in your 2023 interview about ChatGPT? People keep sharing it online."
+    }
+  ]
+}
