@@ -4,8 +4,11 @@ A time-traveler LKY reasoning demo: speak with a simulated elder Lee Kuan Yew â€
 present-day aware, answering modern questions from his principles â€” voiced and
 fronted by a Live2D avatar, honestly labeled as an AI-generated simulation.
 
-See [`docs/spec.md`](docs/spec.md) for the product definition and
-[`docs/lky-avatar-plan.md`](docs/lky-avatar-plan.md) for milestones.
+See [`docs/spec.md`](docs/spec.md) for the product definition,
+[`docs/lky-avatar-plan.md`](docs/lky-avatar-plan.md) for milestones, and
+[`docs/eval-process.md`](docs/eval-process.md) for how the persona and serving
+stack are evaluated (question sets, judging rubric, prompt-variant history,
+benchmark baseline).
 
 ## Running the walking skeleton
 
