@@ -25,30 +25,27 @@ maxed-out-automatable + a run report in docs/reports/.
 | **#13 hosting+hardening** | OPEN | after #33; stale-room bug logged there (fix: unique room per session in token server) |
 | **#33 UI design pass** | OPEN | full design brief in the issue (interview-studio identity); after #8 |
 
-## ⚡ IN FLIGHT — CRITICAL: serving upgrade (your first action)
+## ✅ Serving upgrade: DONE and MERGED (PR #36, parity PASSED)
 
-A subagent (worktree `.claude/worktrees/agent-a6971746ee7ae3f88`, branch
-`serving-gguf-llamacpp`) replaced the 2.47 tok/s bitsandbytes serving:
+llama.cpp Q4_K_M serving replaced the 2.47 tok/s bitsandbytes path:
+**80.5 tok/s p50 (32.6×), TTFT 0.048 s, load 4.1 s, no VRAM balloon, 0/24
+failures, 20-turn check 31 s total.** Parity judged by orchestrator: q19
+premise correction holds; q18/q20 = documented residual, no regression.
+Full report + regeneration runbook: `docs/reports/serving-upgrade.md`.
 
-- **`llama-server.exe` is RUNNING natively on Windows, port 8001**, model
-  `C:\Users\Jamie\lky-avatar-serving\models\lky-qwen3-14b-epoch2-q4_k_m.gguf`
-  (~10.9 GB VRAM). Orchestrator's live sample: **66 tokens in 1.04 s (~60+
-  tok/s, ~25× baseline)**, answer fully in-voice.
-- Report draft exists at `<worktree>/docs/reports/serving-upgrade.md`; no PR yet.
-- Still owed: formal measurements, the parity probe (q18,q19,q20,q01,q05 with the
-  PRODUCTION prompt = variant C + FEW_SHOT_TURNS + style policy from
-  services/voice_agent/persona_prompt.py, via HTTP, locked sampling), the PR.
-- **First action**: check for its PR/notification; if stalled, take over from the
-  worktree per the pattern. YOU judge parity transcripts (rubric:
-  docs/eval-process.md — q19 premise correction must hold; q18/q20 fabrication is
-  the documented residual, not a regression). Merge on pass.
+- Launch command (PowerShell) is in that report; model at
+  `C:\Users\Jamie\lky-avatar-serving\models\lky-qwen3-14b-epoch2-q4_k_m.gguf`.
+  Server is currently DOWN (GPU free); `.env` already points at
+  `http://127.0.0.1:8001/v1`. Port 8000 transformers brain_api = fallback.
+- Seam notes: llama-server QUEUES concurrent requests (no 429-busy) and its
+  /health is minimal — agent code needs zero changes.
+- **Your first action is now the live session below.**
 
-## Then: the combined live session (closes #8, feeds #11)
+## FIRST ACTION: the combined live session (closes #8, feeds #11)
 
-1. Flip `.env`: `OPENAI_BASE_URL=http://127.0.0.1:8001/v1` (llama-server; port
-   8000 transformers brain_api remains the fallback). `.env` holds REAL keys —
+1. `.env` is already flipped to llama-server (8001). `.env` holds REAL keys —
    never print it; validated already (LiveKit + Deepgram work).
-2. Launch: llama-server (if not running) · TTS server (WSL:
+2. Launch: llama-server (command in docs/reports/serving-upgrade.md) · TTS server (WSL:
    `~/tts-chatterbox/bin/python -m uvicorn app:app --host 127.0.0.1 --port 8100`
    in services/tts_server — defaults now ref04/speed1.0) · token server
    (services/token_server, Windows venv, port 8090) · voice agent
