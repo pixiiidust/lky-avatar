@@ -54,6 +54,14 @@ class AgentConfig:
     lky_prompt_variant: str
     # Max tokens per answer, passed to the LLM plugin (spoken-style budget).
     lky_max_tokens: int
+    # Barge-in tuning (live-session feedback 2026-07-14: interruptions
+    # "sometimes worked, sometimes didn't; several tries"). The SDK default
+    # requires 0.5s of continuous speech before interrupting — short
+    # interjections ("wait", "no") often miss it. 0.3s is snappier; false
+    # triggers are recovered by resume_false_interruption.
+    interrupt_min_duration: float
+    false_interrupt_timeout: float
+    resume_false_interruption: bool
 
     @classmethod
     def from_env(cls, env: Mapping[str, str]) -> "AgentConfig":
@@ -72,6 +80,16 @@ class AgentConfig:
                 env.get("LKY_PROMPT_VARIANT", "").strip() or DEFAULT_PROMPT_VARIANT
             ),
             lky_max_tokens=_get_int(env, "LKY_MAX_TOKENS", DEFAULT_MAX_TOKENS),
+            interrupt_min_duration=_get_float(
+                env, "LKY_INTERRUPT_MIN_SEC", 0.3
+            ),
+            false_interrupt_timeout=_get_float(
+                env, "LKY_FALSE_INTERRUPT_TIMEOUT_SEC", 2.0
+            ),
+            resume_false_interruption=(
+                env.get("LKY_RESUME_FALSE_INTERRUPT", "true").strip().lower()
+                != "false"
+            ),
         )
 
 
@@ -80,6 +98,16 @@ def _get_int(env: Mapping[str, str], key: str, default: int) -> int:
     raw = env.get(key, "").strip()
     try:
         value = int(raw) if raw else default
+    except ValueError:
+        return default
+    return value if value > 0 else default
+
+
+def _get_float(env: Mapping[str, str], key: str, default: float) -> float:
+    """Positive float from env; anything unusable falls back to the default."""
+    raw = env.get(key, "").strip()
+    try:
+        value = float(raw) if raw else default
     except ValueError:
         return default
     return value if value > 0 else default

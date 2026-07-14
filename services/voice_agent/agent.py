@@ -214,8 +214,13 @@ async def entrypoint(ctx: JobContext) -> None:
             api_key=config.deepgram_api_key,
         ),
         # Barge-in: on by default in the SDK; kept explicit because the spec
-        # treats interruption as a core requirement.
+        # treats interruption as a core requirement. Sensitivity tuned via
+        # env after live-session feedback (see AgentConfig): the SDK's 0.5s
+        # minimum-speech gate made short interjections miss.
         allow_interruptions=True,
+        min_interruption_duration=config.interrupt_min_duration,
+        false_interruption_timeout=config.false_interrupt_timeout,
+        resume_false_interruption=config.resume_false_interruption,
     )
 
     # Issue #4: measure end-of-speech -> first-audio latency per turn.
