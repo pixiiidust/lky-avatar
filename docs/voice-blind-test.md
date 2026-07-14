@@ -147,11 +147,18 @@ stability, **[pace]** pacing/measured delivery, **[num]** numbers and dates.
   takes — a flubbed take *is* data (that's the stability axis).
 - Save as `assets/voices/blind-test/raw/<engine>/response_NN.wav`
   (NN = 01–20). 4 engines × 20 = 80 files.
+- Runnable form: `scripts/blind_test_synthesize.py --engine <e> --era <1990|2005>`
+  (parses the 20 texts above from this doc). The two reference-clip eras
+  (01–05 = 1990, 06–09 = 2005 — issue #7 era note) are separate conditions,
+  saved as `raw/<engine>-<era>/`; prefer the 2005 set for the elder persona
+  if clone quality is comparable.
 
 ## 3. Blinding and randomization
 
 The operator is also the listener, so blinding is done by shuffle-and-rename.
-Run this once after all synthesis is complete (stdlib-only):
+Runnable form: `python scripts/blind_shuffle.py` (stdlib-only; also generates
+the empty `scores.csv` of §5, refuses to reshuffle mid-scoring without
+`--force`, and records the era condition per sample). Reference procedure:
 
 ```python
 # blind_shuffle.py — run from repo root: python blind_shuffle.py
