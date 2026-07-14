@@ -24,8 +24,11 @@ today…) including three **adversarial traps**:
 - `q19` — embeds a post-2015 event in the question's *premise* ("you lived through COVID…")
 - `q20` — requests a verbatim quote from an interview that never happened
 
-**Runner:** [`scripts/run_timetravel_eval.py`](../scripts/run_timetravel_eval.py)
-(WSL, GPU, ~2 min/question at the current 2.5 tok/s baseline).
+**Runners:** [`scripts/run_timetravel_eval.py`](../scripts/run_timetravel_eval.py)
+(direct Transformers load, WSL GPU) and
+[`scripts/run_timetravel_eval_http.py`](../scripts/run_timetravel_eval_http.py)
+(same eval through any OpenAI-compatible server — use this one to gate serving
+changes, seconds per question on the GGUF server).
 
 ```bash
 # Full eval, all variants
@@ -91,11 +94,20 @@ Measures cold model load, TTFT (first streamed token), decode and overall tok/s,
 steady/peak VRAM, and failure rate; writes a schema-versioned JSON to
 `evals/results/benchmark_baseline_<git-sha>.json` designed for diffing between runs.
 
-**Baseline (2026-07-14, SHA 8828c55):** decode p50 **2.47 tok/s**, TTFT p50 3.36 s
-cold (0.40–0.84 s warm in live session), load 36.3 s, 0/24 failures. Full analysis
-and the known bnb-NF4 bottleneck (with GGUF/vLLM remedies) in
-[`docs/reports/baseline-benchmark.md`](reports/baseline-benchmark.md). Any serving
-change must beat or match this file's numbers to ship.
+**Baseline (2026-07-14, SHA 8828c55, bnb NF4):** decode p50 **2.47 tok/s**, TTFT
+p50 3.36 s cold, load 36.3 s, 0/24 failures — analysis in
+[`reports/baseline-benchmark.md`](reports/baseline-benchmark.md).
+
+**Production serving (2026-07-14 evening, PR #36 — merged-LoRA GGUF Q4_K_M on
+llama-server):** decode p50 **80.5 tok/s (32.6×)**, TTFT p50 **0.048 s**, load
+4.1 s, no VRAM reservation balloon, 0/24 failures, 20-turn check in 31 s. Same
+24-prompt yardstick over HTTP (`scripts/benchmark_serving_http.py`; results in
+`evals/results/benchmark_llamacpp-q4km_1c856d1.json`). Parity gate ran via
+`scripts/run_timetravel_eval_http.py` (adversarial subset + q01/q05, production
+prompt): PASS — premise correction stable, residual q18/q20 profile unchanged.
+Method + regeneration runbook: [`reports/serving-upgrade.md`](reports/serving-upgrade.md).
+Any future serving change must beat or match *these* numbers and re-run the same
+parity gate.
 
 ## 3. Live-session instrumentation
 
@@ -105,8 +117,16 @@ TTS TTFB, correlated by `speech_id`). Targets from the plan:
 
 | Metric | Local target | Best measured (2026-07-14) |
 |---|---|---|
-| End-of-speech → first-audio p50 | ≤ 4 s | 1.1–2.6 s over 8 turns |
+| End-of-speech → first-audio p50 (stock TTS, bnb serving) | ≤ 4 s | 1.1–2.6 s over 8 turns |
+| End-of-speech → first-audio (cloned TTS, bnb serving) | ≤ 4 s | **~10 s — FAILED**; root cause: first *sentence* took ~7 s at 2.47 tok/s before sentence-granularity TTS could start |
+| Expected with GGUF serving (80 tok/s) + cloned TTS | ≤ 4 s | ~1–1.5 s projected (first sentence exists in ~0.3 s); confirm in the #11 gate session |
 | Interruption → silence | ≤ 350 ms | pending formal measurement (issue #11) |
+
+The ~10 s failure is the canonical example of this process working: an operator
+complaint ("latency is quite bad") became a root-cause chain (sentence-granularity
+TTS × slow decode), which promoted a documented remedy (GGUF/llama.cpp) from
+backlog to shipped (PR #36) — with the serving benchmark and parity gate re-run
+before it replaced anything.
 
 Operator-reported issues from live sessions (e.g. "rambly", "interruptions took
 several tries") are treated as eval findings: reproduced, root-caused, fixed, and
@@ -115,9 +135,15 @@ tuning knobs in `.env.example`.
 
 ## Related protocols
 
-- **Voice (TTS) blind test:** [`docs/voice-blind-test.md`](voice-blind-test.md) —
-  scored 1–5 across six axes on a fixed 20-response script; winner requires no
-  axis below 3. Runs when reference clips are confirmed (issue #7).
+- **Voice (TTS) selection — COMPLETE:** protocol in
+  [`voice-blind-test.md`](voice-blind-test.md); executed as objective scoring
+  (120 samples: embedding similarity, WER, stability, pacing — the scorer killed
+  F5's reference-leak and XTTS's long-sentence instability) plus three operator
+  listening rounds, whose ear overrode the metrics twice (era 2005→1990; no
+  time-stretch). Final: **Chatterbox + `elder_ref_04` + speed 1.0**; zero-shot
+  ceiling documented; further accent work delegated to the sibling lky-voice
+  fine-tune project. Full record:
+  [`reports/voice-blind-test-results.md`](reports/voice-blind-test-results.md).
 - **Avatar checks:** state-machine unit tests (seam 2), FPS/lip-sync/interruption
   criteria in issues #9/#12; keyless demo mode at `web: ?avatarDemo=1`.
 - **End-to-end stability pass:** the issue #13 checklist (30-minute session,

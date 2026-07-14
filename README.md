@@ -103,23 +103,33 @@ answers `503` with the same guidance.
 ## Running with the LKY brain
 
 Issue #6 swaps the skeleton's stock LLM for the self-hosted LKY brain — the
-browser conversation is then answered *in the LKY persona* (still in a stock
-voice until issue #8). The swap is pure configuration; no code changes.
+browser conversation is then answered *in the LKY persona*. The swap is pure
+configuration; no code changes. There are two interchangeable brain servers
+behind the same OpenAI-compatible seam:
 
-### 1. Start the brain server
+| Server | Port | Speed | Use |
+|---|---|---|---|
+| **llama.cpp (GGUF Q4_K_M)** — production | 8001 | **80.5 tok/s, TTFT 0.05 s** | live sessions, the demo |
+| Transformers + PEFT (4-bit NF4) | 8000 | 2.5 tok/s, TTFT 3.4 s | fallback + fake-engine test seam |
 
-Follow [`services/brain_api/run_real.md`](services/brain_api/run_real.md):
-the real engine (Qwen3-14B + epoch-2 adapter, 4-bit NF4) runs under WSL and
-takes several minutes to load. Wait for `brain api ready` in its log, then
-confirm from Windows:
+Numbers, method, parity evidence, and the GGUF regeneration runbook:
+[`docs/reports/serving-upgrade.md`](docs/reports/serving-upgrade.md).
+
+### 1. Start a brain server
+
+**Production (llama.cpp, native Windows, loads in ~4 s):** the launch command
+is in [`docs/reports/serving-upgrade.md`](docs/reports/serving-upgrade.md)
+(model: `C:\Users\Jamie\lky-avatar-serving\models\...q4_k_m.gguf`). Confirm:
 
 ```bash
-curl -s http://127.0.0.1:8000/health   # model_loaded: true
+curl -s http://127.0.0.1:8001/health   # {"status":"ok"}
 ```
 
-(Keyless dry run without the GPU: start the brain with `BRAIN_ENGINE=fake`
-instead — same endpoint, deterministic answers. See
-[`services/brain_api/README.md`](services/brain_api/README.md).)
+**Fallback (Transformers under WSL, loads in ~36 s):** follow
+[`services/brain_api/run_real.md`](services/brain_api/run_real.md), then
+`curl -s http://127.0.0.1:8000/health`. Keyless dry run without the GPU:
+`BRAIN_ENGINE=fake` — same endpoint, deterministic answers
+([`services/brain_api/README.md`](services/brain_api/README.md)).
 
 ### 2. Flip three env vars
 
@@ -127,16 +137,16 @@ In your repo-root `.env`, replace the stock-LLM trio with the brain
 (this exact block is also documented in `.env.example` under BRAIN MODE):
 
 ```dotenv
-OPENAI_BASE_URL=http://127.0.0.1:8000/v1
+OPENAI_BASE_URL=http://127.0.0.1:8001/v1   # or :8000 for the fallback server
 OPENAI_API_KEY=local-development   # any value; the local seam doesn't authenticate
 SKELETON_LLM_MODEL=lky
 ```
 
 Optional persona knobs (defaults built in): `LKY_SIM_DATE=2026-07-13` sets
-the simulated present day; `LKY_PROMPT_VARIANT=B` selects the time-traveler
-framing variant (A = vendored persona prompt alone, B = + present-day
-awareness / anti-fabrication sentence — issue #2's eval decides which
-ships). `LKY_MAX_TOKENS=320` is the spoken-answer budget.
+the simulated present day; `LKY_PROMPT_VARIANT=C` is the shipped time-traveler
+framing (prompt v2 + few-shot exemplars = "variant D" — full history in
+[`docs/eval-process.md`](docs/eval-process.md)). `LKY_MAX_TOKENS=320` is the
+spoken-answer budget.
 
 ### 3. Run the agent as before
 
@@ -144,8 +154,10 @@ Restart the voice agent (`python agent.py dev`); token server and web client
 are unchanged. What you should experience on top of the skeleton behavior:
 
 - Answers come in LKY's persona — short spoken style (~2–5 sentences).
-  Reality check: the real brain decodes at ~2–3 tok/s on the local GPU, so
-  first audio takes noticeably longer than with a hosted LLM.
+  On the production llama-server (80 tok/s, TTFT ~0.05 s) replies feel
+  immediate; on the Transformers fallback (~2.5 tok/s) first audio takes
+  noticeably longer (measured numbers:
+  [`docs/eval-process.md`](docs/eval-process.md) §2–3).
 - Conversation history holds across turns within your session; if you
   interrupt him, only the words you actually heard are remembered.
 - A second simultaneous visitor (e.g. a second browser tab while an answer
@@ -164,8 +176,10 @@ measured-viable), and the agent selects it with one env var.
 
 ### 1. Start the brain server
 
-As above — [`services/brain_api/run_real.md`](services/brain_api/run_real.md),
-wait for `brain api ready`.
+As above — production llama-server on 8001
+([`docs/reports/serving-upgrade.md`](docs/reports/serving-upgrade.md)), or the
+Transformers fallback per
+[`services/brain_api/run_real.md`](services/brain_api/run_real.md).
 
 ### 2. Start the TTS server
 
@@ -186,10 +200,13 @@ section already active):
 TTS_PROVIDER=chatterbox
 ```
 
-Optional knobs: `LKY_TTS_SPEED=0.85` (delivery-speed factor; the engine
-speaks faster than the real elder LKY, so <1 slows it toward his pace) and
-`LKY_TTS_PRONUNCIATIONS=<path.json>` (extra pronunciation respellings on
-top of the built-in Singapore-terms map).
+Optional knobs: `LKY_TTS_SPEED` (delivery-speed factor — **default 1.0**:
+operator listening rounds found the phase-vocoder slowdown added echo and
+amplified accent drift; see
+[`docs/reports/voice-blind-test-results.md`](docs/reports/voice-blind-test-results.md)),
+`LKY_TTS_REF` (reference clip — default `elder_ref_04.wav`, the listening-round
+winner), and `LKY_TTS_PRONUNCIATIONS=<path.json>` (extra pronunciation
+respellings on top of the built-in Singapore-terms map).
 
 ### 4. Run the agent as before
 
