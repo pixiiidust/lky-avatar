@@ -1,0 +1,19 @@
+# Brain API (issue #5) — Python 3.11
+# Install into services/brain_api/.venv (one venv per service, per GOAL.md):
+#   cd services/brain_api && python -m venv .venv
+#   .venv/Scripts/python -m pip install -r requirements.txt
+#
+# NOTE — real-engine (GPU) dependencies are NOT pinned here on purpose:
+# torch / transformers / peft / bitsandbytes come from the WSL `~/uns`
+# environment (torch 2.12.1+cu130, transformers 5.3.0, peft 0.19.1 —
+# verified in docs/GOAL.md), which is the only CUDA-capable Python on this
+# machine. See run_real.md for the WSL launch procedure.
+
+fastapi==0.139.0
+uvicorn==0.51.0
+python-dotenv==1.2.2
+
+# tests (Seam 1: HTTP client + the real OpenAI SDK end-to-end)
+pytest==9.1.1
+httpx==0.28.1
+openai==2.45.0
