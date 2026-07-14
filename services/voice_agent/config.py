@@ -41,7 +41,7 @@ DEFAULT_TTS_BASE_URL = "http://127.0.0.1:8100"
 # speed 0.81. Default 0.85 sits slightly above exact-match because the
 # refs' inter-sentence pauses inflate their apparent slowness; tune live
 # with LKY_TTS_SPEED. (The report's ~1.74x figure was vs the 2005 refs.)
-DEFAULT_TTS_SPEED = 0.85
+DEFAULT_TTS_SPEED = 1.0
 
 
 @dataclass(frozen=True)
