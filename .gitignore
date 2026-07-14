@@ -57,3 +57,7 @@ Thumbs.db
 
 # Claude Code agent worktrees - never commit
 .claude/
+
+# Raw operator-supplied recordings - never commit
+assets/raw clips/
+assets/raw-clips/
