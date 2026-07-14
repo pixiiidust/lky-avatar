@@ -1,0 +1,9 @@
+# Cloned-voice TTS server (issue #8).
+#
+# This service does NOT get its own venv: it runs inside the existing WSL
+# chatterbox venv (~/tts-chatterbox), which already holds the CUDA audio
+# stack (torch 2.13+cu130, chatterbox-tts, librosa, soundfile, numpy, and
+# setuptools<81 for chatterbox's pkg_resources use). Only the web stack is
+# added on top — see run_real.md for the exact uv command:
+fastapi==0.139.0
+uvicorn==0.51.0

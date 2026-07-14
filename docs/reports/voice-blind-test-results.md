@@ -12,6 +12,16 @@ clips** (`elder_ref_01..05`).
 > chosen portrait's apparent age. Original objective winner recorded below,
 > unchanged, for the record.
 
+> **Amendment (2026-07-14, during issue #8 integration):** the operator's
+> A/B listen — explicitly reserved below as able to reopen the decision —
+> overrode the era choice: **Chatterbox stays the engine, but the reference
+> set flips to the 1990 clips** (`elder_ref_01..05`; cleaner studio audio vs
+> the 2005 conference-hall reverb, and 1990 matches the chosen portrait's
+> age). The objective ranking preferred 2005 on embedding similarity; the
+> human ear preferred 1990 on perceived quality. The pipeline default is now
+> `elder_ref_01.wav`, era-swappable via `LKY_TTS_REF`
+> (services/tts_server/run_real.md).
+
 ## Method deviation, documented
 
 The protocol's human blind-scoring was replaced by objective scoring at the

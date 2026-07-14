@@ -7,9 +7,15 @@ A LiveKit Agents (1.x) voice pipeline:
   endpoint. Pointing it at the self-hosted LKY brain API (issue #6) is a
   pure env-var swap (OPENAI_BASE_URL / OPENAI_API_KEY / SKELETON_LLM_MODEL);
   see ".Swapping the brain in" in the repo README.
-- TTS: Deepgram Aura stock voice (the cloned voice arrives with issue #8)
+- TTS: selected by TTS_PROVIDER (issue #8): "deepgram" (stock Aura voice,
+  default fallback) or "chatterbox" (the cloned elder voice via the
+  loopback-only tts_server — see build_tts and providers/tts.py; start
+  services/tts_server first per its run_real.md).
 - VAD / turn detection / barge-in: Silero VAD via the SDK's standard
-  AgentSession pipeline; interruptions are handled by the SDK.
+  AgentSession pipeline; interruptions are handled by the SDK. The cloned
+  voice inherits identical phrase streaming + barge-in cancellation because
+  the SDK wraps any non-streaming TTS in its StreamAdapter (sentence
+  tokenizer -> per-phrase synthesize, all cancelled as one operation).
 
 Issue #6 additions on top of the skeleton:
 
@@ -96,6 +102,8 @@ from brain_status import (  # noqa: E402
 from config import AgentConfig, explain_unusable, unusable_keys  # noqa: E402
 from latency import LatencyTracker  # noqa: E402
 from persona_prompt import FEW_SHOT_TURNS, build_instructions  # noqa: E402
+from pronunciation import build_pronunciation_map  # noqa: E402
+from providers.tts import ChatterboxTTS  # noqa: E402
 
 logger = logging.getLogger("lky.agent")
 
@@ -128,6 +136,35 @@ def build_llm(config: AgentConfig) -> openai.LLM:
         base_url=config.openai_base_url,
         api_key=config.openai_api_key,
         max_completion_tokens=config.lky_max_tokens,
+    )
+
+
+def build_tts(config: AgentConfig) -> ChatterboxTTS | deepgram.TTS:
+    """The one TTS client, from env config — the voice swap seam (issue #8).
+
+    TTS_PROVIDER=chatterbox speaks in the cloned elder voice through the
+    loopback tts_server (which embeds Chatterbox's PerTh watermark in every
+    sample — preserved untouched through this pipeline). Anything else is
+    the stock Deepgram voice, which also remains the operator fallback if
+    the local TTS server misbehaves mid-demo.
+    """
+    if config.tts_provider == "chatterbox":
+        logger.info(
+            "TTS: cloned voice via %s (speed=%.2f)",
+            config.tts_base_url,
+            config.tts_speed,
+        )
+        return ChatterboxTTS(
+            base_url=config.tts_base_url,
+            speed=config.tts_speed,
+            pronunciations=build_pronunciation_map(
+                config.tts_pronunciations_path or None
+            ),
+        )
+    logger.info("TTS: stock Deepgram voice (%s)", config.tts_model)
+    return deepgram.TTS(
+        model=config.tts_model,
+        api_key=config.deepgram_api_key,
     )
 
 
@@ -224,10 +261,7 @@ async def entrypoint(ctx: JobContext) -> None:
         # The one client that reaches the brain (or any OpenAI-compatible
         # stand-in) — see build_llm.
         llm=build_llm(config),
-        tts=deepgram.TTS(
-            model=config.tts_model,
-            api_key=config.deepgram_api_key,
-        ),
+        tts=build_tts(config),
         # Barge-in: the spec treats interruption as a core requirement.
         # mode="vad" (default here) DISABLES the SDK's adaptive interruption
         # classifier — live sessions on 2026-07-14 showed it classifying the
@@ -308,6 +342,15 @@ def main() -> None:
     except ValueError as exc:
         print(f"Cannot start the voice agent: {exc}", file=sys.stderr)
         raise SystemExit(1) from None
+
+    # Fail fast on a bad LKY_TTS_PRONUNCIATIONS file too — a malformed JSON
+    # map should refuse startup, not throw during the first spoken answer.
+    if config.tts_provider == "chatterbox":
+        try:
+            build_pronunciation_map(config.tts_pronunciations_path or None)
+        except (OSError, ValueError) as exc:
+            print(f"Cannot start the voice agent: {exc}", file=sys.stderr)
+            raise SystemExit(1) from None
 
     cli.run_app(
         WorkerOptions(
