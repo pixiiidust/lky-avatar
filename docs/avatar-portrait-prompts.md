@@ -71,3 +71,17 @@ via image prompts.)
 3. Shortlist 3–5 → check the brief's §2 ten constraints one by one → drop into
    `assets/avatar-source/` with prompt/seed notes → I review them against the
    brief and tell you what passes and what to regenerate.
+
+## F. Using GPT (ChatGPT image generation) — operator's chosen tool
+
+- No negative-prompt field: append to the prompt — *"Avoid: photorealism, chibi
+  or cute anime styling, caricature, smiling or open mouth, glasses, hands, rim
+  lighting, busy background."*
+- If the name is declined, use section B + upload 2–3 elder-LKY reference photos:
+  *"a stylized painterly anime illustration drawing likeness from these
+  references, for a clearly-labeled fictional simulation."*
+- Iterate conversationally and exploit character consistency: *"keep this exact
+  face and expression, but …"* — change ONE thing per turn (style strength,
+  lighting flatness, wardrobe).
+- Output caps ~1024–1536 px: pick the winner first, upscale once to ≥2048 px with
+  any AI upscaler before layer separation. Ask for portrait orientation.
