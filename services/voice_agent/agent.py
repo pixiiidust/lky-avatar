@@ -62,6 +62,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
+import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
 
@@ -81,17 +82,20 @@ from livekit.agents.voice.agent_session import (  # noqa: E402
     TurnHandlingOptions,
 )
 from livekit.agents import (  # noqa: E402
+    AgentStateChangedEvent,
     APIConnectOptions,
     JobContext,
     JobProcess,
     MetricsCollectedEvent,
     ModelSettings,
     RoomOutputOptions,
+    UserStateChangedEvent,
     WorkerOptions,
     cli,
     llm as llm_types,
     metrics,
 )
+from livekit.agents.voice.io import PlaybackFinishedEvent  # noqa: E402
 from livekit.plugins import deepgram, openai, silero  # noqa: E402
 
 from brain_status import (  # noqa: E402
@@ -100,7 +104,7 @@ from brain_status import (  # noqa: E402
     classify_brain_error,
 )
 from config import AgentConfig, explain_unusable, unusable_keys  # noqa: E402
-from latency import LatencyTracker  # noqa: E402
+from latency import InterruptLatency, InterruptTracker, LatencyTracker  # noqa: E402
 from persona_prompt import FEW_SHOT_TURNS, build_instructions  # noqa: E402
 from pronunciation import build_pronunciation_map  # noqa: E402
 from providers.tts import ChatterboxTTS  # noqa: E402
@@ -299,6 +303,28 @@ async def entrypoint(ctx: JobContext) -> None:
         if done is not None:
             logger.info("LATENCY %s", done.summary())
 
+    # Issue #11: measure interruption-detected -> playback-stopped per
+    # barge-in. With this agent's config (mode="vad" +
+    # resume_false_interruption) the SDK stops audio via its pause path,
+    # which flips the agent state away from "speaking" in the same
+    # synchronous call as audio_output.pause() — so that state change is
+    # the playback-stopped moment. The hard-interrupt path (pause
+    # unavailable) instead reports playback_finished(interrupted=True)
+    # immediately; the tracker handles both without double-counting.
+    interrupts = InterruptTracker(min_duration=config.interrupt_min_duration)
+
+    def _log_interrupt(done: InterruptLatency | None) -> None:
+        if done is not None:
+            logger.info("INTERRUPT %s", done.summary())
+
+    @session.on("user_state_changed")
+    def _on_user_state(ev: UserStateChangedEvent) -> None:
+        interrupts.on_user_state(ev.new_state, at=ev.created_at)
+
+    @session.on("agent_state_changed")
+    def _on_agent_state(ev: AgentStateChangedEvent) -> None:
+        _log_interrupt(interrupts.on_agent_state(ev.new_state, at=ev.created_at))
+
     async def report_status(status: str) -> None:
         # Published on the local participant; the web client watches the
         # lky.brain attribute for its busy banner / avatar error state.
@@ -317,6 +343,18 @@ async def entrypoint(ctx: JobContext) -> None:
             transcription_enabled=True,
         ),
     )
+
+    # The room audio output only exists after session.start (RoomIO wires
+    # it); subscribe here for the hard-interrupt stop path (issue #11).
+    if session.output.audio is not None:
+
+        @session.output.audio.on("playback_finished")
+        def _on_playback_finished(ev: PlaybackFinishedEvent) -> None:
+            _log_interrupt(
+                interrupts.on_playback_finished(
+                    at=time.time(), interrupted=ev.interrupted
+                )
+            )
 
     await ctx.connect()
 
