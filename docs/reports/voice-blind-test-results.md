@@ -1,6 +1,16 @@
 # Voice selection results (issue #7)
 
-**Winner: Chatterbox + 2005-era reference clips** (`elder_ref_06..09`).
+**Winner (final, after operator listening test): Chatterbox + 1990-era reference
+clips** (`elder_ref_01..05`).
+
+> **Human override (2026-07-14):** the objective ranking preferred the 2005 era on
+> embedding similarity, but the operator's listening test found the 1990-based
+> clones clearly better on perceived quality. Probable cause: the 2005 source is a
+> conference-hall recording (room reverb bakes into the clone); the 1990 source is
+> a clean SBC studio broadcast. Embedding similarity measures speaker identity, not
+> naturalness — the ear wins on quality. The 1990 voice (age 67) also matches the
+> chosen portrait's apparent age. Original objective winner recorded below,
+> unchanged, for the record.
 
 ## Method deviation, documented
 
