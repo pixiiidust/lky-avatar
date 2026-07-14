@@ -517,6 +517,45 @@ button {
   color: var(--oxblood);
 }
 
+/* --- Exporting the record (issue #40) --------------------------------------- */
+
+/* The same quiet register as the note affordance: a ruled-off line at the
+ * foot of the record, text links on the paper — not a toolbar. */
+#export-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  margin: 0 1.75rem;
+  border-top: 1px solid var(--rule);
+  padding: 0.6rem 0 0.2rem;
+  font-size: 0.78rem;
+  color: var(--ink-60);
+}
+
+#export-caption {
+  margin-right: 0.15rem;
+}
+
+.export-sep {
+  color: var(--ink-38);
+}
+
+#export-row button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: inherit;
+  color: var(--ink-60);
+  text-decoration: underline;
+  text-decoration-color: var(--rule);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+#export-row button:hover {
+  color: var(--oxblood);
+}
+
 /* --- The chyron (locked disclosure as a broadcast lower-third) ------------- */
 
 #disclosure {
@@ -701,7 +740,8 @@ button {
   .record-head,
   #transcript,
   #record-hint,
-  #note-details {
+  #note-details,
+  #export-row {
     margin-left: 1rem;
     margin-right: 1rem;
   }

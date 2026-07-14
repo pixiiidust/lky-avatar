@@ -66,6 +66,28 @@
             </form>
             <p id="note-status" role="status" hidden></p>
           </details>
+
+          <!-- Export the record (issue #40): client-side Blob downloads only —
+               a certified copy in Markdown, and the JSONL eval trace. Works
+               whatever state the session ended in. -->
+          <div id="export-row" role="group" aria-label="Export the record">
+            <span id="export-caption" aria-hidden="true">Export the record</span>
+            <button
+              id="export-md"
+              type="button"
+              aria-label="Export the record as Markdown"
+            >
+              Markdown
+            </button>
+            <span class="export-sep" aria-hidden="true">·</span>
+            <button
+              id="export-jsonl"
+              type="button"
+              aria-label="Export the record as a JSONL eval trace"
+            >
+              JSONL eval trace
+            </button>
+          </div>
         </section>
       </main>
 
