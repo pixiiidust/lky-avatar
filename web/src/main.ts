@@ -8,6 +8,13 @@ import {
 } from "livekit-client";
 import { TranscriptStore, type Segment } from "./transcript.ts";
 import {
+  exportFilenames,
+  newShortId,
+  toJsonl,
+  toMarkdown,
+  type SessionInfo,
+} from "./export.ts";
+import {
   AvatarStateMachine,
   type AgentEvent,
   type AgentReportedState,
@@ -76,6 +83,11 @@ const noteStatus = document.querySelector<HTMLParagraphElement>("#note-status")!
 const disclosureEl = document.querySelector<HTMLElement>("#disclosure")!;
 const disclosureToggle =
   document.querySelector<HTMLButtonElement>("#disclosure-toggle")!;
+const disclosureTextEl =
+  document.querySelector<HTMLParagraphElement>("#disclosure-text")!;
+const exportMdBtn = document.querySelector<HTMLButtonElement>("#export-md")!;
+const exportJsonlBtn =
+  document.querySelector<HTMLButtonElement>("#export-jsonl")!;
 
 const transcript = new TranscriptStore();
 let room: Room | null = null;
@@ -134,6 +146,11 @@ function renderSlate(): void {
 }
 
 function updateAvatarDom(intent: AvatarIntent): void {
+  // Entering `interrupted` is the client-observable barge-in moment: record
+  // it against his current turn so the export can mark the turn cut short.
+  if (intent.state === "interrupted" && avatarState !== "interrupted") {
+    transcript.markInterruption("lee");
+  }
   avatarStage.dataset.avatarState = intent.state;
   avatarState = intent.state;
   machineMessage = intent.statusMessage;
@@ -350,6 +367,63 @@ noteForm.addEventListener("submit", (ev) => {
   void passNote(text);
 });
 
+// --- Exporting the record (issue #40) ----------------------------------------
+
+/** epoch ms when the current session began; null before any session. */
+let sessionStartedAt: number | null = null;
+/** One short id per session, shared by both exported filenames. */
+let sessionShortId: string | null = null;
+
+/** The locked disclosure wording, from its single source in index.html
+ * (whitespace-collapsed: the HTML source wraps the line). */
+const DISCLOSURE_WORDING = (disclosureTextEl.textContent ?? "")
+  .replace(/\s+/g, " ")
+  .trim();
+
+function sessionInfo(): SessionInfo {
+  return {
+    startedAt: sessionStartedAt,
+    source: demoMode ? "demo" : "live",
+    appVersion: __APP_VERSION__,
+    gitSha: __GIT_SHA__,
+    disclosure: DISCLOSURE_WORDING,
+  };
+}
+
+/** Client-side only: a Blob download, nothing sent anywhere. */
+function download(filename: string, text: string, mime: string): void {
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/** Export what the record holds — deliberately available in every session
+ * state, including after busy/error endings. */
+function exportRecord(format: "md" | "jsonl"): void {
+  sessionShortId ??= newShortId();
+  const exportedAt = Date.now();
+  const inputs = {
+    session: sessionInfo(),
+    segments: transcript.list(),
+    exportedAt,
+  };
+  const names = exportFilenames(exportedAt, sessionShortId);
+  if (format === "md") {
+    download(names.md, toMarkdown(inputs), "text/markdown;charset=utf-8");
+  } else {
+    download(names.jsonl, toJsonl(inputs), "application/x-ndjson;charset=utf-8");
+  }
+}
+
+exportMdBtn.addEventListener("click", () => exportRecord("md"));
+exportJsonlBtn.addEventListener("click", () => exportRecord("jsonl"));
+
 // --- Session ------------------------------------------------------------------
 
 async function connect(): Promise<void> {
@@ -408,6 +482,8 @@ async function connect(): Promise<void> {
 
     transcript.clear();
     renderTranscript();
+    sessionStartedAt = Date.now();
+    sessionShortId = null; // fresh session, fresh export filenames
     brainStatus = "ok";
     micNotice = null;
     setConnection("connected");
@@ -481,6 +557,7 @@ void (async () => {
     // Keyless demo: fake agent events + generated audio, no LiveKit.
     connectBtn.disabled = true;
     connection = "connected"; // let the lamp show the machine's states
+    sessionStartedAt = Date.now(); // the demo session's export header
     renderLamp();
     const { startAvatarDemo } = await import("./avatar/demo.ts");
     startAvatarDemo({
@@ -514,6 +591,9 @@ void (async () => {
               "before your competitors do.",
           );
           transcript.markFinal("d3");
+          // The written note barged in mid-answer: d3 stands in the record
+          // as cut short (exercises the export's `interrupted` flag).
+          transcript.markInterruption("lee");
           transcript.addNote("you", "And if the talent leaves for better pay abroad?");
           transcript.beginSegment("d4", "lee");
           transcript.appendText(

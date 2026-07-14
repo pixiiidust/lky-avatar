@@ -15,6 +15,11 @@ Single-page browser client (issues #4, #9, #12; visual identity #33). Layout per
   playback events, typed-note input (`lk.chat`)
 - `src/lamp.ts` — **pure** studio-lamp mapping (connection + machine state +
   brain status → caption/light), the design's signature element
+- `src/export.ts` — **pure** session-export serializers (issue #40): the
+  JSONL eval trace (session-config header + one line per finalized turn)
+  and the Markdown transcript of record. Client-side Blob downloads via the
+  quiet "Export the record" affordance at the foot of the record column;
+  a reference trace lives at `evals/sample_session_trace.jsonl`
 - `public/models/` — rigged Live2D assets (gitignored; see its README for
   the placeholder model's license and the fetch step)
 
