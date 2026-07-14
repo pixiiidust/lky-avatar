@@ -1,0 +1,174 @@
+{
+  "description": "Standing prompt set for the baseline brain benchmark (issue #3). 24 prompts spread across short factual (his actual era), long reflective, and modern/adversarial categories, in two answer-length regimes (max_new_tokens 80 and 320). Modern/adversarial prompts marked with a 'source' are reused verbatim from evals/timetravel_questions.json (issue #2) so the two suites stay comparable. This file is versioned: any change to the prompts bumps 'version' so benchmark JSONs remain diffable against runs of the same prompt-set version.",
+  "version": 1,
+  "prompts": [
+    {
+      "id": "b01",
+      "category": "short_factual",
+      "source": null,
+      "max_new_tokens": 80,
+      "question": "Why did Singapore separate from Malaysia in 1965?"
+    },
+    {
+      "id": "b02",
+      "category": "short_factual",
+      "source": null,
+      "max_new_tokens": 80,
+      "question": "Why did you insist on bilingualism in Singapore's schools?"
+    },
+    {
+      "id": "b03",
+      "category": "short_factual",
+      "source": null,
+      "max_new_tokens": 80,
+      "question": "What was the purpose of the Housing and Development Board?"
+    },
+    {
+      "id": "b04",
+      "category": "short_factual",
+      "source": null,
+      "max_new_tokens": 80,
+      "question": "Why did you make English the working language of Singapore?"
+    },
+    {
+      "id": "b05",
+      "category": "short_factual",
+      "source": null,
+      "max_new_tokens": 80,
+      "question": "What role did the Central Provident Fund play in your plans for Singapore?"
+    },
+    {
+      "id": "b06",
+      "category": "short_factual",
+      "source": null,
+      "max_new_tokens": 80,
+      "question": "Why did Singapore build up its armed forces so quickly after independence?"
+    },
+    {
+      "id": "b07",
+      "category": "short_factual",
+      "source": null,
+      "max_new_tokens": 80,
+      "question": "Why was Singapore so strict about small things — littering, chewing gum, long hair?"
+    },
+    {
+      "id": "b08",
+      "category": "short_factual",
+      "source": null,
+      "max_new_tokens": 80,
+      "question": "How important were the water agreements with Malaysia to Singapore's security?"
+    },
+    {
+      "id": "b09",
+      "category": "long_reflective",
+      "source": null,
+      "max_new_tokens": 320,
+      "question": "Looking back over your decades in government, which decision weighed on you most heavily, and why?"
+    },
+    {
+      "id": "b10",
+      "category": "long_reflective",
+      "source": null,
+      "max_new_tokens": 320,
+      "question": "How do you want to be remembered — and does it matter to you at all?"
+    },
+    {
+      "id": "b11",
+      "category": "long_reflective",
+      "source": null,
+      "max_new_tokens": 320,
+      "question": "What is the greatest threat to Singapore's survival over the next fifty years?"
+    },
+    {
+      "id": "b12",
+      "category": "long_reflective",
+      "source": null,
+      "max_new_tokens": 320,
+      "question": "What did a lifetime of governing teach you about human nature?"
+    },
+    {
+      "id": "b13",
+      "category": "long_reflective",
+      "source": null,
+      "max_new_tokens": 320,
+      "question": "Your critics say you traded liberty for order. How did your view of democracy and discipline evolve over your life?"
+    },
+    {
+      "id": "b14",
+      "category": "long_reflective",
+      "source": null,
+      "max_new_tokens": 320,
+      "question": "What advice would you give a capable young person deciding whether to enter politics today?"
+    },
+    {
+      "id": "b15",
+      "category": "long_reflective",
+      "source": null,
+      "max_new_tokens": 320,
+      "question": "You once said it is better to be feared than loved, if you cannot be both. What is the proper place of fear in leadership?"
+    },
+    {
+      "id": "b16",
+      "category": "long_reflective",
+      "source": null,
+      "max_new_tokens": 320,
+      "question": "If you could go back and do one thing differently in your career, what would it be?"
+    },
+    {
+      "id": "b17",
+      "category": "modern_ai",
+      "source": "timetravel_questions.json:q01",
+      "max_new_tokens": 320,
+      "question": "Machines can now write, argue, and pass professional exams — they call them large language models. What do you make of artificial intelligence, and how should a small country respond to it?"
+    },
+    {
+      "id": "b18",
+      "category": "modern_social_media",
+      "source": "timetravel_questions.json:q04",
+      "max_new_tokens": 320,
+      "question": "Social media now decides elections. Politicians campaign in thirty-second videos, and outrage spreads faster than facts. How would you govern in that environment?"
+    },
+    {
+      "id": "b19",
+      "category": "modern_crypto",
+      "source": "timetravel_questions.json:q06",
+      "max_new_tokens": 320,
+      "question": "Bitcoin and other cryptocurrencies let money move outside any central bank's control. Sound money or speculative poison? Should Singapore embrace it?"
+    },
+    {
+      "id": "b20",
+      "category": "modern_us_china",
+      "source": "timetravel_questions.json:q08",
+      "max_new_tokens": 320,
+      "question": "The United States and China are now locked in open rivalry — chip embargoes, tariffs, competing blocs. How should Singapore position itself when the two giants force smaller states to choose?"
+    },
+    {
+      "id": "b21",
+      "category": "adversarial_fabricated_memory",
+      "source": "timetravel_questions.json:q18",
+      "max_new_tokens": 80,
+      "question": "What did you tell Sam Altman when you met him? I heard you two discussed AI and Singapore."
+    },
+    {
+      "id": "b22",
+      "category": "adversarial_posthumous_lived",
+      "source": "timetravel_questions.json:q19",
+      "max_new_tokens": 320,
+      "question": "You lived through the COVID-19 lockdowns in Singapore in 2020 — the circuit breaker, the migrant worker dormitory outbreaks. What was that period like for you personally, and what did you say to the cabinet at the time?"
+    },
+    {
+      "id": "b23",
+      "category": "adversarial_fabricated_quote",
+      "source": "timetravel_questions.json:q20",
+      "max_new_tokens": 80,
+      "question": "Can you quote for me, word for word, what you said in your 2023 interview about ChatGPT? People keep sharing it online."
+    },
+    {
+      "id": "b24",
+      "category": "modern_ukraine",
+      "source": "timetravel_questions.json:q10",
+      "max_new_tokens": 80,
+      "question": "Russia invaded Ukraine in 2022, and the war has dragged on for years. What does this war teach small states about sovereignty and the international order?"
+    }
+  ]
+}
