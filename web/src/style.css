@@ -556,6 +556,38 @@ button {
   color: var(--oxblood);
 }
 
+/* --- The wrap (issue #13: end the interview / start afresh) ---------------- */
+
+/* Same slate vocabulary as the set's cards, sitting on the record's paper:
+ * a ruled card offering the export before "Start afresh" clears the page. */
+#wrap-card {
+  margin: 0.7rem 1.75rem 0.35rem;
+  padding: 0.8rem 1.4rem;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--oxblood);
+}
+
+#start-afresh {
+  margin-top: 0.65rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.45rem 1.1rem;
+  border: 1px solid var(--ink-60);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 150ms ease, color 150ms ease;
+}
+
+#start-afresh:hover {
+  border-color: var(--oxblood);
+  color: var(--oxblood);
+}
+
 /* --- The chyron (locked disclosure as a broadcast lower-third) ------------- */
 
 #disclosure {

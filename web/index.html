@@ -88,6 +88,20 @@
               JSONL eval trace
             </button>
           </div>
+
+          <!-- The wrap (issue #13): after "End the interview", offer the
+               export (issue #40) BEFORE the record is cleared. "Start
+               afresh" wipes the record and returns to the pre-connect
+               state. Logic in src/reset.ts. -->
+          <div id="wrap-card" role="status" hidden>
+            <p class="slate-caption">Off the record</p>
+            <p class="slate-message">
+              The interview has ended. Export the record above if you want a
+              copy — it lives only in this page until you do. Starting afresh
+              clears it.
+            </p>
+            <button id="start-afresh" type="button">Start afresh</button>
+          </div>
         </section>
       </main>
 
