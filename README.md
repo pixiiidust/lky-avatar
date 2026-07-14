@@ -42,6 +42,9 @@ cd ../..
 cd web
 npm install
 cd ..
+
+# Placeholder Live2D avatar model (licensed Live2D sample; never committed)
+python scripts/fetch_placeholder_model.py
 ```
 
 ### 2. Configure keys
