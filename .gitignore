@@ -1,25 +1,55 @@
-# Secrets — never commit real keys
+# Secrets — never commit real keys (see .env.example for placeholders)
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 
 # Python
 .venv/
+venv/
 __pycache__/
-*.pyc
+*.py[cod]
+*.egg-info/
 .pytest_cache/
 
 # Node
 node_modules/
 dist/
 
-# Never-commit assets (plan §13)
-assets/voices/
-assets/avatar-source/
-web/public/models/
-*.pt
+# Voice / audio assets — reference clips, rights metadata, generated audio
+assets/voices/*
+!assets/voices/README.md
+!assets/voices/.gitkeep
+*.wav
+*.mp3
+*.flac
+*.ogg
+*.m4a
+
+# Art sources — portraits, layer-separated PSDs, Clip Studio files
+assets/avatar-source/*
+!assets/avatar-source/README.md
+!assets/avatar-source/.gitkeep
+*.psd
+*.clip
+
+# Rigged Live2D models
+web/public/models/*
+!web/public/models/README.md
+!web/public/models/.gitkeep
+*.model3.json
+*.moc3
+
+# Model weights and adapters
 *.safetensors
+*.bin
 *.gguf
+*.pt
+*.pth
+
+# Generated indexes / caches
+*.index
+*.faiss
+.cache/
 
 # OS noise
 .DS_Store
