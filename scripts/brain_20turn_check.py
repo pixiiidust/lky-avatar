@@ -111,14 +111,23 @@ def main() -> int:
     args = parser.parse_args()
     base_url = args.base_url.rstrip("/")
 
+    # brain_api's /health is rich (engine, instance_id, VRAM...). Other
+    # OpenAI-compatible servers behind the same seam (llama-server: issue
+    # #11/#13 serving upgrade) return a minimal {"status": "ok"} — degrade
+    # gracefully and skip the brain_api-specific checks.
     health = get_json(base_url + "/health")
-    print(f"server: engine={health['engine']} model={health['model']} "
-          f"instance={health['instance_id'][:12]} "
-          f"vram={health['vram_allocated_gib']} GiB")
-    if not health["model_loaded"]:
+    rich_health = "instance_id" in health
+    instance_id = health.get("instance_id")
+    print(f"server: engine={health.get('engine', health.get('status', '?'))} "
+          f"model={health.get('model', '?')} "
+          f"instance={(instance_id or 'n/a')[:12]} "
+          f"vram={health.get('vram_allocated_gib')} GiB")
+    if not health.get("model_loaded", health.get("status") == "ok"):
         print("FAIL: model not loaded", file=sys.stderr)
         return 1
-    instance_id = health["instance_id"]
+    if not rich_health:
+        print("note: minimal /health (not brain_api) — instance/in-flight/"
+              "VRAM checks skipped")
 
     today = date.today().isoformat()
     history: list[dict] = [
@@ -157,12 +166,12 @@ def main() -> int:
         history.append({"role": "assistant", "content": answer})
 
         health = get_json(base_url + "/health")
-        if health["instance_id"] != instance_id:
+        if rich_health and health.get("instance_id") != instance_id:
             failures.append(
                 f"turn {turn_number}: server instance changed "
                 f"(restart mid-conversation)"
             )
-        if health["generation_in_flight"]:
+        if rich_health and health.get("generation_in_flight"):
             failures.append(
                 f"turn {turn_number}: generation_in_flight still true "
                 f"after the stream finished"
@@ -174,7 +183,7 @@ def main() -> int:
             if first_at is not None and t_end > first_at
             else None
         )
-        vram = health["vram_allocated_gib"]
+        vram = health.get("vram_allocated_gib")
         turns.append(
             {
                 "turn": turn_number,
@@ -212,7 +221,7 @@ def main() -> int:
     completed = len(turns)
     summary = {
         "base_url": base_url,
-        "engine": health["engine"],
+        "engine": health.get("engine", health.get("status", "unknown")),
         "instance_id": instance_id,
         "turns_completed": completed,
         "turns_requested": args.turns,
