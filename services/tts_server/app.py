@@ -68,7 +68,7 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 # operator's A/B listen preferred 1990 (cleaner studio audio; matches the
 # chosen portrait's age) — human override, recorded in
 # docs/reports/voice-blind-test-results.md. Swap eras with LKY_TTS_REF.
-DEFAULT_REF = REPO_ROOT / "assets" / "voices" / "elder" / "elder_ref_01.wav"
+DEFAULT_REF = REPO_ROOT / "assets" / "voices" / "elder" / "elder_ref_04.wav"
 DEFAULT_SEED = 7
 
 MAX_TEXT_CHARS = 1000  # phrases are sentences; reject essay-sized requests
