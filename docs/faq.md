@@ -87,15 +87,19 @@ Operational gotchas, both now part of the launch checklist:
   before connecting; the durable fix (unique room per session, minted by
   the token server) is tracked for the hosting pass (#13).
 
-## 6. Is building this actually hard in 2026?
+## 6. Which parts of a realtime voice pipeline are commodity, and which are still hard?
 
-Less than its reputation — *if* you refuse to hand-roll the realtime layer.
-The WebRTC transport, VAD, turn-taking, and barge-in plumbing come from the
-LiveKit Agents SDK; STT, LLM, and TTS plug into its seams behind ordinary
-HTTP interfaces (which is also what made the brain and voice independently
-swappable here). The genuinely hard, still-unsolved part is conversational
-*feel*: end-pointing (knowing you've finished talking) is a guess under
-uncertainty, interruption semantics are subtle (see #2), and every stage's
-latency stacks into the one number a visitor actually perceives (see #4).
-That's where the engineering hours went — and the per-stage instrumentation
-(`LATENCY` / `INTERRUPT` log lines) is what made those hours converge.
+Commodity: the realtime plumbing. WebRTC transport, VAD, turn-taking, and
+barge-in mechanics come from the LiveKit Agents SDK rather than being
+hand-rolled; STT, LLM, and TTS plug into its seams behind ordinary HTTP
+interfaces — which is also what made the brain and the voice independently
+swappable in this project (each swap was env-var configuration, not code).
+
+Still hard: conversational *feel*. End-pointing (deciding the speaker has
+finished) is a guess under uncertainty — too eager and the agent talks over
+people, too patient and it lags. Interruption semantics are subtle (see
+question 2). And every stage's latency stacks into the single number a
+visitor actually perceives (see question 4). That is where this project's
+engineering hours went, and the per-stage instrumentation (the `LATENCY`
+and `INTERRUPT` agent-log lines) is what made those hours converge instead
+of guessing.
