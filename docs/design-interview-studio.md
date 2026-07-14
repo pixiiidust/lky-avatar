@@ -72,6 +72,22 @@ chyron stays pinned to the bottom edge, the note control remains reachable benea
 record. The static-portrait fallback (no WebGL) inherits the same set styling, so the
 identity survives degradation.
 
+**The chyron fold (operator revision, 2026-07-14).** On a phone the full notice is a
+five-line slab holding the bottom of the screen for the whole interview. So, on small
+viewports only, once the visitor has **engaged** — first connect, or a first turn on the
+record — the chyron folds to a thin one-line slate pill: the oxblood tab,
+`FICTIONAL SIMULATION` in slate caps, and an expand affordance. This is a **fold, never a
+dismissal**: the pill is persistent at the bottom edge, and expanding it restores the
+operator's locked wording byte-for-byte. The visitor meets the full notice before they
+have done anything; the pill only earns its place after the interview has their
+attention. The affordance is a real `<button>` (focusable; Enter/Space toggles;
+`aria-expanded`/`aria-controls` carry the state), styled as the same slate slab reduced
+to its caption — a broadcast control, not a cookie-banner dismiss. State swaps **cut**
+like broadcast slates — no animation at all — so `prefers-reduced-motion` is respected by
+construction. Desktop never folds. The rule lives in a pure module
+(`web/src/chyron.ts`, tested in `chyron.test.ts`): mode is only ever `full` or `pill`;
+there is deliberately no hidden state.
+
 ## 4. Signature element — the studio lamp
 
 One physical-feeling indicator replaces all debug-y status text: a lamp housing with a

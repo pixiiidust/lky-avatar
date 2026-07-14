@@ -14,6 +14,7 @@ import {
   type AvatarIntent,
 } from "./avatar/stateMachine.ts";
 import { lampView, type ConnectionPhase } from "./lamp.ts";
+import { chyronView } from "./chyron.ts";
 import { RmsLipSync } from "./avatar/lipSync.ts";
 import { createAvatarView, type AvatarView } from "./avatar/Live2DAvatar.ts";
 import "@fontsource-variable/literata/opsz.css";
@@ -72,6 +73,9 @@ const noteForm = document.querySelector<HTMLFormElement>("#note-form")!;
 const noteInput = document.querySelector<HTMLInputElement>("#note-input")!;
 const noteSend = document.querySelector<HTMLButtonElement>("#note-send")!;
 const noteStatus = document.querySelector<HTMLParagraphElement>("#note-status")!;
+const disclosureEl = document.querySelector<HTMLElement>("#disclosure")!;
+const disclosureToggle =
+  document.querySelector<HTMLButtonElement>("#disclosure-toggle")!;
 
 const transcript = new TranscriptStore();
 let room: Room | null = null;
@@ -162,6 +166,40 @@ function setConnection(phase: ConnectionPhase): void {
   renderLamp();
 }
 
+// --- The disclosure chyron ---------------------------------------------------
+
+/** Same breakpoint as style.css's mobile stack (`@media (max-width: 760px)`). */
+const compactViewport = window.matchMedia("(max-width: 760px)");
+/** Sticky: the visitor has engaged (first connect, or a first turn on record). */
+let chyronEngaged = false;
+/** The visitor explicitly re-expanded the folded notice. */
+let chyronExpanded = false;
+
+function renderChyron(): void {
+  const view = chyronView({
+    compact: compactViewport.matches,
+    engaged: chyronEngaged,
+    expanded: chyronExpanded,
+  });
+  disclosureEl.dataset.mode = view.mode;
+  disclosureToggle.hidden = !view.toggle;
+  disclosureToggle.setAttribute("aria-expanded", String(view.expanded));
+}
+
+/** First engagement folds the small-viewport chyron to its slate pill. */
+function engageChyron(): void {
+  if (chyronEngaged) return;
+  chyronEngaged = true;
+  renderChyron();
+}
+
+disclosureToggle.addEventListener("click", () => {
+  chyronExpanded = !chyronExpanded;
+  renderChyron();
+});
+compactViewport.addEventListener("change", renderChyron);
+renderChyron();
+
 // --- The record -------------------------------------------------------------
 
 function attributionFor(seg: Segment): string {
@@ -170,9 +208,12 @@ function attributionFor(seg: Segment): string {
 }
 
 function renderTranscript(): void {
+  const segments = transcript.list();
+  // A first turn on the record counts as engagement (demo/typed flows too).
+  if (segments.length > 0) engageChyron();
   let previousKey = "";
   transcriptEl.replaceChildren(
-    ...transcript.list().map((seg) => {
+    ...segments.map((seg) => {
       const li = document.createElement("li");
       li.classList.add(seg.final ? "final" : "interim");
       li.dataset.speaker = seg.speaker;
@@ -370,6 +411,7 @@ async function connect(): Promise<void> {
     brainStatus = "ok";
     micNotice = null;
     setConnection("connected");
+    engageChyron();
     connectBtn.textContent = "End the interview";
 
     // The microphone is the primary path, but its failure must not end the
