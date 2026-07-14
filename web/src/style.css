@@ -1,0 +1,132 @@
+:root {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  background: #f5f4f0;
+  color: #1d1d1b;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #17181a;
+    color: #eceae5;
+  }
+}
+
+#app {
+  width: min(44rem, 100%);
+  padding: 0 1rem 3rem;
+}
+
+/* Persistent AI disclosure — spec requires it unmissable from day one. */
+#disclosure {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  margin: 0 -1rem;
+  padding: 0.6rem 1rem;
+  background: #7a1f1f;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+header {
+  margin: 1.5rem 0 1rem;
+}
+
+h1 {
+  font-size: 1.4rem;
+  margin: 0;
+}
+
+.subtitle {
+  margin: 0.2rem 0 0;
+  opacity: 0.65;
+  font-size: 0.9rem;
+}
+
+#controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+#connect-btn {
+  font: inherit;
+  padding: 0.5rem 1.4rem;
+  border-radius: 0.4rem;
+  border: 1px solid currentColor;
+  cursor: pointer;
+  background: transparent;
+  color: inherit;
+}
+
+#connect-btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+#status {
+  font-size: 0.9rem;
+}
+
+#status[data-state="connected"] {
+  color: #1c7c2e;
+}
+
+#status[data-state="error"] {
+  color: #b3261e;
+}
+
+#transcript-panel h2 {
+  font-size: 1rem;
+  margin-bottom: 0.4rem;
+}
+
+#transcript {
+  list-style: none;
+  margin: 0;
+  padding: 0.75rem;
+  min-height: 10rem;
+  max-height: 24rem;
+  overflow-y: auto;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+#transcript li {
+  display: flex;
+  gap: 0.6rem;
+}
+
+#transcript li.interim .text {
+  font-style: italic;
+  opacity: 0.6;
+}
+
+#transcript .speaker {
+  flex: 0 0 3.5rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+#transcript-hint {
+  font-size: 0.8rem;
+  opacity: 0.6;
+}
+
+#audio-sink {
+  display: none;
+}

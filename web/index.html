@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LKY Avatar — walking skeleton</title>
+  </head>
+  <body>
+    <div id="app">
+      <!-- Spec requirement from day one: persistent, unmissable AI disclosure.
+           Placeholder wording; final copy arrives with the persona. -->
+      <div id="disclosure" role="note">
+        AI-generated simulation. Not authentic Lee Kuan Yew audio or
+        statements. (Walking skeleton: currently a stock assistant voice.)
+      </div>
+
+      <header>
+        <h1>LKY Avatar — walking skeleton</h1>
+        <p class="subtitle">Stock STT → LLM → TTS loop over LiveKit</p>
+      </header>
+
+      <section id="controls">
+        <button id="connect-btn" type="button">Connect</button>
+        <span id="status" data-state="disconnected">Disconnected</span>
+      </section>
+
+      <section id="transcript-panel">
+        <h2>Transcript</h2>
+        <ol id="transcript" aria-live="polite"></ol>
+        <p id="transcript-hint">
+          Connect, allow the microphone, and start speaking. Interim words
+          appear in italics while you talk; try interrupting the agent
+          mid-answer.
+        </p>
+      </section>
+
+      <!-- Remote agent audio elements are attached here (hidden). -->
+      <div id="audio-sink"></div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

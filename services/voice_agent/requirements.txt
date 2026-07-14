@@ -1,0 +1,7 @@
+# Walking-skeleton voice agent (issue #4) — Python 3.11
+# Install into services/voice_agent/.venv (one venv per service, per GOAL.md).
+livekit-agents[deepgram,openai,silero]==1.6.5
+python-dotenv==1.2.2
+
+# tests
+pytest==9.1.1
