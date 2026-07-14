@@ -7,36 +7,36 @@
 
 - **Benchmark JSON:** `evals/results/benchmark_baseline_<git-short-sha>.json`
 - **Run command:** `wsl -d Ubuntu-24.04 -- bash -c '~/uns/bin/python .../scripts/benchmark_brain.py --git-sha <sha>'`
-- **Run date:** _(fill from JSON `metadata.run_at`)_
-- **Git SHA:** _(fill)_
+- **Run date:** 2026-07-14T15:10:59+00:00
+- **Git SHA:** 8828c55
 - **Prompt set:** `evals/benchmark_prompts.json` v1 — 24 prompts (short factual / long reflective / modern + adversarial; max_new_tokens 80 and 320 regimes; modern prompts shared verbatim with the issue #2 time-travel eval)
 
 ## Headline numbers
 
 | Metric | Value |
 |---|---|
-| Model + adapter load (cold process, warm HF cache) | _(fill)_ s |
-| VRAM after load (allocated) | _(fill)_ GiB |
-| Peak VRAM over run (allocated / reserved) | _(fill)_ / _(fill)_ GiB |
-| TTFT p50 / p95 | _(fill)_ / _(fill)_ s |
-| Decode tok/s p50 / p95 | _(fill)_ / _(fill)_ |
-| Overall tok/s p50 / p95 | _(fill)_ / _(fill)_ |
-| Failure rate | _(fill)_ (n = _(fill)_ prompts) |
+| Model + adapter load (cold process, warm HF cache) | 36.3 s |
+| VRAM after load (allocated) | 10.88 GiB |
+| Peak VRAM over run (allocated / reserved) | 25.56 / 25.85 GiB |
+| TTFT p50 / p95 | 3.363 / 3.636 s |
+| Decode tok/s p50 / p95 | 2.468 / 2.553 |
+| Overall tok/s p50 / p95 | 2.298 / 2.391 |
+| Failure rate | 0.0 (n = 24 prompts) |
 
 ### By answer-length regime
 
 | Regime (max_new_tokens) | TTFT p50 (s) | Decode tok/s p50 | Generation p50 (s) |
 |---|---|---|---|
-| 80 (spoken-short) | _(fill)_ | _(fill)_ | _(fill)_ |
-| 320 (product default cap) | _(fill)_ | _(fill)_ | _(fill)_ |
+| 80 (spoken-short) | 3.347 | 2.491 | 35.209 |
+| 320 (product default cap) | 3.379 | 2.455 | 106.398 |
 
 ## Environment
 
 | | |
 |---|---|
-| GPU | _(fill — expected: NVIDIA GeForce RTX 5070 Ti, 16 GB)_ |
-| torch / CUDA | _(fill — expected: 2.12.1+cu130)_ |
-| transformers / peft / bitsandbytes | _(fill)_ |
+| GPU | NVIDIA GeForce RTX 5070 Ti (15.92 GiB) |
+| torch / CUDA | 2.12.1+cu130 / CUDA 13.0 |
+| transformers / peft / bitsandbytes | 5.3.0 / 0.19.1 / 0.49.2 |
 | Quantization | bitsandbytes 4-bit NF4, bfloat16 compute |
 | Model | Qwen/Qwen3-14B + `sjsim/lky-qlora` epoch-2 adapter |
 | Sampling (locked) | enable_thinking=false, temp 0.7, top_p 0.9, rep_penalty 1.1 |
@@ -78,6 +78,15 @@ boundary), so downstream components are untouched by whichever wins.
 
 ## Notes / anomalies
 
-_(fill after the run: warmup effect size, any failed prompts, TTFT outliers,
-observations about 80- vs 320-token regimes, deviation from the probe
-numbers)_
+- Zero failures; decode speed is strikingly uniform (2.41-2.56 tok/s across all
+  24 prompts and both regimes) — the bottleneck is systematic, not workload-dependent.
+- Reserved VRAM balloons to 25.85 GiB during generation while allocated stays
+  ~10.9 GiB steady: allocator reservation spike (also seen in the issue-#2 runs),
+  spills into WSL shared memory but does not affect the (already slow) decode rate.
+- TTFT is flat ~3.4 s per cold prompt here, yet the live agent session measured
+  0.40-0.84 s — the difference is continuous-session warmth (cache/graph reuse).
+  Use the live number for UX budgeting, this number for cold-start budgeting.
+
+## Live-session cross-check (2026-07-14)
+
+A warm continuous voice session through the brain API measured LLM TTFT 0.40-0.84 s and end-of-speech to first-audio 1.1-2.6 s over 8 turns - far below this benchmark's cold per-prompt TTFT p50 of 3.36 s. First-audio latency is NOT the bottleneck; sustained decode (~2.5 tok/s vs ~15+ needed for uninterrupted speech) is. The voice survives today only because answers are short and phrase-streamed.
