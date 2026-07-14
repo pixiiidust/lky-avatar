@@ -1,0 +1,26 @@
+# Secrets — never commit real keys
+.env
+.env.local
+.env.*.local
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+
+# Never-commit assets (plan §13)
+assets/voices/
+assets/avatar-source/
+web/public/models/
+*.pt
+*.safetensors
+*.gguf
+
+# OS noise
+.DS_Store
+Thumbs.db

@@ -1,0 +1,11 @@
+# Token server (issue #4) — Python 3.11
+# Install into services/token_server/.venv (one venv per service, per GOAL.md).
+fastapi==0.139.0
+uvicorn==0.51.0
+livekit-api==1.2.0
+python-dotenv==1.2.2
+
+# tests
+pytest==9.1.1
+httpx==0.28.1
+PyJWT==2.13.0
