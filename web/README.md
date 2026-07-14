@@ -1,6 +1,6 @@
 # web
 
-Single-page browser client (issues #4, #9, #12). Layout per plan §6:
+Single-page browser client (issues #4, #9, #12; visual identity #33). Layout per plan §6:
 
 - `src/avatar/` — avatar stack (issue #9):
   - `stateMachine.ts` — **pure** agent-events → avatar-intents module (the
@@ -12,12 +12,21 @@ Single-page browser client (issues #4, #9, #12). Layout per plan §6:
     canvas, static-image fallback
   - `demo.ts` — keyless demo driver (`?avatarDemo=1`)
 - `src/transcript.ts`, `src/main.ts` — LiveKit room wiring, transcript,
-  playback events
+  playback events, typed-note input (`lk.chat`)
+- `src/lamp.ts` — **pure** studio-lamp mapping (connection + machine state +
+  brain status → caption/light), the design's signature element
 - `public/models/` — rigged Live2D assets (gitignored; see its README for
   the placeholder model's license and the fetch step)
 
-One page: live transcript, persistent AI-simulation disclosure label,
-connection/busy/waking states. No era picker, no push-to-talk.
+One page, staged as a broadcast interview (design: see
+`docs/design-interview-studio.md`): the set (avatar + studio lamp + slate
+cards) beside the transcript of record, with the persistent AI-simulation
+disclosure as a bottom chyron. The state machine renders as the lamp
+(`STANDBY / LISTENING / THINKING / ON AIR / FLOOR IS YOURS / OFF AIR`, plus
+`IN SESSION` while the single-slot brain is busy). Visitors who cannot use
+the mic can **pass a written note** — typed questions go to the agent over
+the LiveKit `lk.chat` text stream and get the same spoken answer + record
+entry. No era picker, no push-to-talk.
 
 ## Setup
 
@@ -54,7 +63,9 @@ npm run dev
   a simulated **connection error** (neutral pose + visible message) →
   recovery → disconnect.
 - Manual buttons inject individual events (Listening / Thinking / Speak 5s /
-  Interrupt / Error / Disconnect).
+  Interrupt / Error / Disconnect), plus studio-chrome states for design
+  review (Busy slate / Seed record / Mic-fail note — the last opens the
+  pass-a-note card, whose submissions stay local in demo mode).
 - The readout shows renderer mode, **FPS** (turns red below the 50 FPS
   acceptance target), machine state, and whether the mouth is live.
 - What to eyeball: idle breathing + autonomous blinking + subtle sway;

@@ -3,49 +3,85 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LKY Avatar — walking skeleton</title>
+    <meta name="color-scheme" content="light dark" />
+    <title>Lee Kuan Yew, in conversation — a fictional AI interview</title>
   </head>
   <body>
     <div id="app">
+      <main id="studio">
+        <!-- The set: programme slate, the subject, the studio lamp. -->
+        <section id="set" aria-label="Interview set">
+          <header id="slate-head">
+            <p class="eyebrow">A fictional AI interview</p>
+            <h1>Lee Kuan Yew, <em>in conversation</em></h1>
+          </header>
+
+          <!-- Live2D canvas (or the static-image fallback) mounts here. -->
+          <div id="avatar-stage" data-avatar-state="idle"></div>
+
+          <div id="set-floor">
+            <!-- Signature element: the studio lamp. The visible caption is the
+                 state readout; the sr-only prefix keeps it meaningful aloud. -->
+            <div id="studio-lamp" data-light="off" data-live="0">
+              <span class="lamp-face" aria-hidden="true"></span>
+              <span class="lamp-caption" role="status">
+                <span class="sr-only">Studio state:&nbsp;</span
+                ><span id="lamp-caption-text">STANDBY</span>
+              </span>
+            </div>
+
+            <button id="connect-btn" type="button">Begin the interview</button>
+          </div>
+
+          <!-- Slate card: busy / error / mic notices, in the studio's voice. -->
+          <div id="slate-card" role="status" hidden>
+            <p class="slate-caption" id="slate-caption"></p>
+            <p class="slate-message" id="slate-message"></p>
+          </div>
+        </section>
+
+        <!-- The record: his words as typeset print, yours as notes. -->
+        <section id="record" aria-label="Transcript of record">
+          <h2 class="record-head">Transcript of record</h2>
+          <ol id="transcript" aria-live="polite"></ol>
+          <p id="record-hint">
+            Speak whenever you like — your words settle into the record, and
+            you may interrupt him freely.
+          </p>
+
+          <!-- Typed-input fallback: pass a written question to the interviewer. -->
+          <details id="note-details">
+            <summary id="note-summary">Can’t use the mic? Pass him a written note</summary>
+            <form id="note-form">
+              <label class="sr-only" for="note-input">Your written question</label>
+              <input
+                id="note-input"
+                name="note"
+                type="text"
+                autocomplete="off"
+                maxlength="500"
+                placeholder="Write your question here…"
+              />
+              <button id="note-send" type="submit">Pass the note</button>
+            </form>
+            <p id="note-status" role="status" hidden></p>
+          </details>
+        </section>
+      </main>
+
       <!-- Spec requirement: persistent, unmissable AI disclosure.
-           Wording chosen by the operator, 2026-07-14. -->
-      <div id="disclosure" role="note">
+           Wording chosen by the operator, 2026-07-14 — LOCKED; presentation
+           (the broadcast chyron) is the design. -->
+      <footer id="disclosure" role="note">
         Fictional AI simulation of Lee Kuan Yew in the present day, as an
         experiment. Generated responses are not authentic quotations. Not
         affiliated with or endorsed by his family or the Government of
         Singapore.
-      </div>
-
-      <header>
-        <h1>LKY Avatar — walking skeleton</h1>
-        <p class="subtitle">Stock STT → LLM → TTS loop over LiveKit</p>
-      </header>
-
-      <section id="controls">
-        <button id="connect-btn" type="button">Connect</button>
-        <span id="status" data-state="disconnected">Disconnected</span>
-      </section>
-
-      <section id="avatar-panel">
-        <!-- Live2D canvas (or the static-image fallback) mounts here. -->
-        <div id="avatar-stage" data-avatar-state="idle"></div>
-        <!-- Visible status message, e.g. the error state's message. -->
-        <p id="avatar-status" role="status" hidden></p>
-      </section>
+      </footer>
 
       <!-- Keyless demo controls; shown only with ?avatarDemo=1 -->
       <section id="demo-panel" hidden>
-        <h2>Avatar demo (no LiveKit)</h2>
-      </section>
-
-      <section id="transcript-panel">
-        <h2>Transcript</h2>
-        <ol id="transcript" aria-live="polite"></ol>
-        <p id="transcript-hint">
-          Connect, allow the microphone, and start speaking. Interim words
-          appear in italics while you talk; try interrupting the agent
-          mid-answer.
-        </p>
+        <h2>Studio demo (no LiveKit)</h2>
       </section>
 
       <!-- Remote agent audio elements are attached here (hidden). -->

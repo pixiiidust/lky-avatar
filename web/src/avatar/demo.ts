@@ -22,6 +22,16 @@ export interface DemoContext {
   onIntent: (intent: AvatarIntent) => void;
   /** Where the (audible) demo audio element is parked. */
   audioSink: HTMLElement;
+  /**
+   * Studio-chrome hooks (issue #33): drive the busy slate, seed the printed
+   * record, and surface the pass-a-note card — so every visual state can be
+   * reviewed/screenshotted without LiveKit or the brain.
+   */
+  studio?: {
+    setBrainStatus: (status: string) => void;
+    seedRecord: () => void;
+    offerNoteCard: () => void;
+  };
 }
 
 /**
@@ -243,6 +253,18 @@ export function startAvatarDemo(context: DemoContext): void {
     dispatch({ type: "connection-error", message: "Demo: simulated connection error" }),
   );
   button("Disconnect", () => dispatch({ type: "disconnected" }));
+
+  // Studio-chrome states (issue #33 design review).
+  const studio = context.studio;
+  if (studio) {
+    let busy = false;
+    button("Busy slate", () => {
+      busy = !busy;
+      studio.setBrainStatus(busy ? "busy" : "ok");
+    });
+    button("Seed record", () => studio.seedRecord());
+    button("Mic-fail note", () => studio.offerNoteCard());
+  }
 
   // --- FPS / state readout (50+ FPS is an acceptance criterion) ------------
   window.setInterval(() => {
