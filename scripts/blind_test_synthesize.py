@@ -199,17 +199,49 @@ class ChatterboxEngine:
                 f"seed={self.seed}, default exaggeration/cfg")
 
     def synthesize(self, text: str, out_path: pathlib.Path) -> None:
-        import torchaudio
+        # torchaudio>=2.9 routes save() through torchcodec, which needs
+        # system FFmpeg libs this WSL lacks — write with soundfile instead.
+        import soundfile as sf
 
         self._torch.manual_seed(self.seed)
         wav = self.model.generate(text, audio_prompt_path=str(self.ref))
-        torchaudio.save(str(out_path), wav.cpu(), self.model.sr)
+        arr = wav.detach().cpu().numpy()
+        if arr.ndim == 2:
+            arr = arr.T  # (channels, n) -> (n, channels)
+        sf.write(str(out_path), arr, self.model.sr)
+
+
+def _shim_torchaudio_io() -> None:
+    """Replace torchaudio.load/save with soundfile-backed versions.
+
+    torchaudio>=2.9 delegates I/O to torchcodec, which requires system FFmpeg
+    libraries unavailable in this WSL (no sudo). Engines that call
+    torchaudio.load/save internally (F5-TTS) work fine once I/O goes through
+    soundfile; the DSP paths are untouched.
+    """
+    import soundfile as sf
+    import torch
+    import torchaudio
+
+    def _load(path, *args, **kwargs):
+        data, sr = sf.read(str(path), dtype="float32", always_2d=True)
+        return torch.from_numpy(data.T), sr
+
+    def _save(path, tensor, sample_rate, *args, **kwargs):
+        arr = tensor.detach().cpu().numpy()
+        if arr.ndim == 2:
+            arr = arr.T
+        sf.write(str(path), arr, sample_rate)
+
+    torchaudio.load = _load
+    torchaudio.save = _save
 
 
 class F5Engine:
     """SWivid F5-TTS: flow matching; needs reference audio + its transcript."""
 
     def __init__(self, refs: ReferenceSet, device: str, seed: int):
+        _shim_torchaudio_io()  # before f5 touches torchaudio I/O
         from f5_tts.api import F5TTS
 
         self.seed = seed
