@@ -21,6 +21,13 @@ DEFAULT_TTS_MODEL = "aura-2-andromeda-en"
 DEFAULT_LLM_MODEL = "gpt-4o-mini"
 DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
 
+# Persona framing (issue #6; variant verdict pending from issue #2).
+DEFAULT_SIM_DATE = "2026-07-13"
+DEFAULT_PROMPT_VARIANT = "B"
+# Spoken-answer token budget — matches the brain server's own default
+# (services/brain_api DEFAULT_MAX_TOKENS): ~2-5 spoken sentences.
+DEFAULT_MAX_TOKENS = 320
+
 
 @dataclass(frozen=True)
 class AgentConfig:
@@ -40,6 +47,13 @@ class AgentConfig:
     # Overridable model choices
     stt_model: str
     tts_model: str
+    # Persona framing (issue #6): simulated present day + prompt variant
+    # (A = vendored persona prompt alone; B = A + present-day-awareness /
+    # anti-fabrication sentence — issue #2 decides which ships).
+    lky_sim_date: str
+    lky_prompt_variant: str
+    # Max tokens per answer, passed to the LLM plugin (spoken-style budget).
+    lky_max_tokens: int
 
     @classmethod
     def from_env(cls, env: Mapping[str, str]) -> "AgentConfig":
@@ -53,7 +67,22 @@ class AgentConfig:
             llm_model=env.get("SKELETON_LLM_MODEL", DEFAULT_LLM_MODEL),
             stt_model=env.get("SKELETON_STT_MODEL", DEFAULT_STT_MODEL),
             tts_model=env.get("SKELETON_TTS_MODEL", DEFAULT_TTS_MODEL),
+            lky_sim_date=env.get("LKY_SIM_DATE", "").strip() or DEFAULT_SIM_DATE,
+            lky_prompt_variant=(
+                env.get("LKY_PROMPT_VARIANT", "").strip() or DEFAULT_PROMPT_VARIANT
+            ),
+            lky_max_tokens=_get_int(env, "LKY_MAX_TOKENS", DEFAULT_MAX_TOKENS),
         )
+
+
+def _get_int(env: Mapping[str, str], key: str, default: int) -> int:
+    """Positive int from env; anything unusable falls back to the default."""
+    raw = env.get(key, "").strip()
+    try:
+        value = int(raw) if raw else default
+    except ValueError:
+        return default
+    return value if value > 0 else default
 
 
 def is_placeholder(value: str) -> bool:

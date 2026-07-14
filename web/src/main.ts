@@ -22,6 +22,16 @@ const TOKEN_SERVER_URL: string =
 
 const TRANSCRIPTION_TOPIC = "lk.transcription";
 
+/**
+ * Participant attribute the agent publishes its brain status on (issue #6):
+ * "ok" | "busy" (single-slot brain already answering someone) | "error"
+ * (brain unreachable / failed).
+ */
+const BRAIN_ATTRIBUTE = "lky.brain";
+const BRAIN_BUSY_TEXT = "LKY is speaking with someone — please wait.";
+const BRAIN_ERROR_TEXT =
+  "LKY's brain is unreachable right now — please try again shortly.";
+
 /** Values LiveKit Agents publishes on the `lk.agent.state` attribute. */
 const AGENT_STATES: ReadonlySet<string> = new Set([
   "initializing",
@@ -41,6 +51,9 @@ const demoPanel = document.querySelector<HTMLElement>("#demo-panel")!;
 
 const transcript = new TranscriptStore();
 let room: Room | null = null;
+
+/** Last brain status reported by the agent ("ok" until told otherwise). */
+let brainStatus = "ok";
 
 // --- Avatar: state machine + renderer + played-audio lip sync -------------
 
@@ -165,10 +178,34 @@ async function connect(): Promise<void> {
       .on(RoomEvent.TrackUnsubscribed, handleTrackUnsubscribed)
       .on(RoomEvent.Disconnected, onDisconnected)
       .on(RoomEvent.ParticipantAttributesChanged, (attrs, participant) => {
+        if (participant.identity === room?.localParticipant.identity) {
+          return;
+        }
+        // Brain status (issue #6): busy shows the polite wait state; error
+        // feeds the avatar state machine's error state (neutral pose +
+        // visible message). Both are sticky on the status line until the
+        // agent reports ok again.
+        const brain = attrs[BRAIN_ATTRIBUTE];
+        if (brain && brain !== brainStatus) {
+          brainStatus = brain;
+          if (brain === "busy") {
+            setStatus("busy", BRAIN_BUSY_TEXT);
+          } else if (brain === "error") {
+            setStatus("error", BRAIN_ERROR_TEXT);
+            dispatchAvatarEvent({
+              type: "connection-error",
+              message: BRAIN_ERROR_TEXT,
+            });
+          } else {
+            setStatus("connected", "Connected — speak whenever you like");
+          }
+        }
         // The agent publishes its state (listening/thinking/speaking).
         const state = attrs["lk.agent.state"];
-        if (state && participant.identity !== room?.localParticipant.identity) {
-          setStatus("connected", `Connected — agent ${state}`);
+        if (state) {
+          if (brainStatus === "ok") {
+            setStatus("connected", `Connected — agent ${state}`);
+          }
           if (AGENT_STATES.has(state)) {
             dispatchAvatarEvent({
               type: "agent-state",
@@ -205,6 +242,7 @@ async function connect(): Promise<void> {
 
     transcript.clear();
     renderTranscript();
+    brainStatus = "ok";
     setStatus("connected", "Connected — speak whenever you like");
     connectBtn.textContent = "Disconnect";
   } catch (err) {
@@ -237,6 +275,7 @@ function onDisconnected(): void {
   room = null;
   lipSync.detach();
   agentAudible = false;
+  brainStatus = "ok";
   // The machine keeps a visible error state through disconnect; a clean
   // disconnect returns the avatar to idle.
   dispatchAvatarEvent({ type: "disconnected" });

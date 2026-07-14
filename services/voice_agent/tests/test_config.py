@@ -2,7 +2,10 @@
 
 from config import (
     DEFAULT_LLM_MODEL,
+    DEFAULT_MAX_TOKENS,
     DEFAULT_OPENAI_BASE_URL,
+    DEFAULT_PROMPT_VARIANT,
+    DEFAULT_SIM_DATE,
     DEFAULT_STT_MODEL,
     DEFAULT_TTS_MODEL,
     AgentConfig,
@@ -47,6 +50,32 @@ def test_stt_and_tts_models_overridable():
     cfg = AgentConfig.from_env(env)
     assert cfg.stt_model == "nova-2"
     assert cfg.tts_model == "aura-2-orion-en"
+
+
+def test_persona_defaults_pending_issue_2_verdict():
+    cfg = AgentConfig.from_env(REAL_ENV)
+    assert cfg.lky_sim_date == DEFAULT_SIM_DATE == "2026-07-13"
+    assert cfg.lky_prompt_variant == DEFAULT_PROMPT_VARIANT == "B"
+    assert cfg.lky_max_tokens == DEFAULT_MAX_TOKENS == 320
+
+
+def test_persona_env_overrides():
+    env = dict(
+        REAL_ENV,
+        LKY_SIM_DATE="2011-05-01",
+        LKY_PROMPT_VARIANT="A",
+        LKY_MAX_TOKENS="160",
+    )
+    cfg = AgentConfig.from_env(env)
+    assert cfg.lky_sim_date == "2011-05-01"
+    assert cfg.lky_prompt_variant == "A"
+    assert cfg.lky_max_tokens == 160
+
+
+def test_unusable_max_tokens_falls_back_to_default():
+    for bad in ("", "  ", "banana", "-5", "0"):
+        cfg = AgentConfig.from_env(dict(REAL_ENV, LKY_MAX_TOKENS=bad))
+        assert cfg.lky_max_tokens == DEFAULT_MAX_TOKENS
 
 
 def test_is_placeholder():

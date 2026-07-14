@@ -83,6 +83,10 @@ h1 {
   color: #1c7c2e;
 }
 
+#status[data-state="busy"] {
+  color: #8a6d00;
+}
+
 #status[data-state="error"] {
   color: #b3261e;
 }
