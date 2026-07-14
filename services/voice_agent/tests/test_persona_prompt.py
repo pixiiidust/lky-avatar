@@ -9,6 +9,7 @@ from persona_prompt import (
     DEFAULT_SIM_DATE,
     DEFAULT_VARIANT,
     PRESENT_DAY_AWARENESS,
+    PRESENT_DAY_AWARENESS_V2,
     SPOKEN_STYLE_POLICY,
     build_instructions,
     normalize_variant,
@@ -56,6 +57,22 @@ def test_anti_fabrication_rule_present_in_variant_b_only():
     assert "do not fabricate" not in persona_system_prompt("2026-07-13", "A")
 
 
+@pytest.mark.parametrize("date", DATE_MATRIX)
+def test_variant_c_is_a_plus_exact_v2_paragraph(date):
+    a = persona_system_prompt(date, "A")
+    c = persona_system_prompt(date, "C")
+    assert c == a + PRESENT_DAY_AWARENESS_V2
+    assert c.startswith(persona.system_prompt(date))  # base never reworded
+
+
+def test_variant_c_encodes_verdict_conditions_and_socratic_instinct():
+    c = persona_system_prompt("2026-07-13", "C")
+    assert "March 2015" in c                      # premise correction
+    assert "never fabricate" in c                 # anti-fabrication
+    assert "statistics" in c                      # no invented specifics
+    assert "clarifying question" in c             # operator feedback (Socratic)
+
+
 def test_variant_is_case_insensitive_and_trimmed():
     assert normalize_variant(" b ") == "B"
     assert persona_system_prompt("2026-07-13", "a") == persona_system_prompt(
@@ -63,7 +80,7 @@ def test_variant_is_case_insensitive_and_trimmed():
     )
 
 
-@pytest.mark.parametrize("bad", ["", "C", "AB", "variant-b"])
+@pytest.mark.parametrize("bad", ["", "D", "AB", "variant-b"])
 def test_unknown_variant_raises_naming_the_env_var(bad):
     with pytest.raises(ValueError, match="LKY_PROMPT_VARIANT"):
         persona_system_prompt("2026-07-13", bad)
@@ -82,6 +99,6 @@ def test_build_instructions_layers_style_after_persona():
     assert style_part == SPOKEN_STYLE_POLICY
 
 
-def test_spoken_style_demands_two_to_five_sentences():
-    assert "two to five sentences" in SPOKEN_STYLE_POLICY
+def test_spoken_style_demands_brevity():
+    assert "two to four sentences" in SPOKEN_STYLE_POLICY
     assert "No markdown" in SPOKEN_STYLE_POLICY

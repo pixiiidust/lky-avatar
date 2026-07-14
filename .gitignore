@@ -54,3 +54,6 @@ web/public/models/*
 # OS noise
 .DS_Store
 Thumbs.db
+
+# Claude Code agent worktrees - never commit
+.claude/
