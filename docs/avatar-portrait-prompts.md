@@ -85,3 +85,24 @@ via image prompts.)
   lighting flatness, wardrobe).
 - Output caps ~1024–1536 px: pick the winner first, upscale once to ≥2048 px with
   any AI upscaler before layer separation. Ask for portrait orientation.
+
+## G. Expression reference sheet (AFTER the winner is chosen)
+
+Live2D expressions are rig presets deformed from the ONE neutral base — never
+separate artworks. These prompts generate *references* for sculpting the presets
+(plan's five: neutral, stern, amused, emphatic, reflective). Run each as a
+follow-up turn on the winning image; keep mouths closed (mouth opening is a rig
+parameter):
+
+- "Keep this exact face, angle, lighting, and painterly style. Change only the
+  expression to: faintly stern — brows drawn slightly down and together, eyes
+  hard, mouth closed and firm, jaw set."
+- "…to: subtly amused — eyes slightly narrowed with warmth, faint asymmetric
+  closed-mouth smile, one brow a touch raised."
+- "…to: emphatic — brows raised, eyes wide and intense, head fractionally
+  forward, mouth closed but tension in the jaw as if about to speak."
+- "…to: reflective — gaze slightly lowered and softened, brows relaxed, the face
+  at rest, mouth closed, a thoughtful stillness."
+
+Store the sheet beside the winner in `assets/avatar-source/` for the rigging
+phase (issue #12).
