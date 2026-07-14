@@ -22,6 +22,8 @@ import {
 } from "./avatar/stateMachine.ts";
 import { lampView, type ConnectionPhase } from "./lamp.ts";
 import { chyronView } from "./chyron.ts";
+import { gateNoticeFor, type GateNotice } from "./gate.ts";
+import { nextReset, resetView, type ResetEvent, type ResetState } from "./reset.ts";
 import { RmsLipSync } from "./avatar/lipSync.ts";
 import { createAvatarView, type AvatarView } from "./avatar/Live2DAvatar.ts";
 import "@fontsource-variable/literata/opsz.css";
@@ -88,6 +90,9 @@ const disclosureTextEl =
 const exportMdBtn = document.querySelector<HTMLButtonElement>("#export-md")!;
 const exportJsonlBtn =
   document.querySelector<HTMLButtonElement>("#export-jsonl")!;
+const wrapCardEl = document.querySelector<HTMLDivElement>("#wrap-card")!;
+const startAfreshBtn =
+  document.querySelector<HTMLButtonElement>("#start-afresh")!;
 
 const transcript = new TranscriptStore();
 let room: Room | null = null;
@@ -103,6 +108,8 @@ let brainStatus = "ok";
 let machineMessage: string | null = null;
 /** Mic-permission fallback notice (typed input surfaced instead). */
 let micNotice: string | null = null;
+/** Token-server refusal (single-session busy / rate limit — issue #13). */
+let gateNotice: GateNotice | null = null;
 
 // --- Avatar: state machine + renderer + played-audio lip sync -------------
 
@@ -128,6 +135,11 @@ function renderSlate(): void {
   if (machineMessage !== null) {
     caption = "Off air";
     message = machineMessage;
+  } else if (gateNotice !== null) {
+    // The token server refused to start a session: the studio is occupied
+    // (single-session) or this connection is asking too often (rate limit).
+    caption = gateNotice.caption;
+    message = gateNotice.message;
   } else if (brainStatus === "busy") {
     caption = "In session";
     message = BRAIN_BUSY_TEXT;
@@ -252,6 +264,13 @@ function renderTranscript(): void {
   transcriptEl.scrollTop = transcriptEl.scrollHeight;
 }
 
+/** A token-server refusal that has a DESIGNED rendering (issue #13). */
+class TokenGateError extends Error {
+  constructor(readonly notice: GateNotice) {
+    super(notice.message);
+  }
+}
+
 async function fetchToken(): Promise<{ token: string; url: string }> {
   const resp = await fetch(`${TOKEN_SERVER_URL}/api/token`, {
     method: "POST",
@@ -259,13 +278,18 @@ async function fetchToken(): Promise<{ token: string; url: string }> {
     body: JSON.stringify({}),
   });
   if (!resp.ok) {
-    let detail = `token server responded ${resp.status}`;
+    let body: unknown = null;
     try {
-      detail = (await resp.json()).detail ?? detail;
+      body = await resp.json();
     } catch {
       /* non-JSON error body */
     }
-    throw new Error(detail);
+    const notice = gateNoticeFor(resp.status, body);
+    if (notice) throw new TokenGateError(notice);
+    const detail = (body as { detail?: unknown } | null)?.detail;
+    throw new Error(
+      typeof detail === "string" ? detail : `token server responded ${resp.status}`,
+    );
   }
   return resp.json();
 }
@@ -426,8 +450,46 @@ exportJsonlBtn.addEventListener("click", () => exportRecord("jsonl"));
 
 // --- Session ------------------------------------------------------------------
 
+// The end-the-interview / start-afresh flow (issue #13): pure logic in
+// reset.ts, side effects (disconnect, clear) applied here.
+let resetState: ResetState = "standby";
+
+/** Wipe the record and the session identifiers (pre-connect state). */
+function clearRecord(): void {
+  transcript.clear();
+  renderTranscript();
+  sessionStartedAt = null;
+  sessionShortId = null;
+}
+
+function renderResetControls(): void {
+  const view = resetView(resetState);
+  connectBtn.textContent =
+    view.control === "end" ? "End the interview" : "Begin the interview";
+  wrapCardEl.hidden = !view.offerExport;
+}
+
+function applyReset(event: ResetEvent): void {
+  const transition = nextReset(resetState, event);
+  resetState = transition.state;
+  if (transition.clearRecord) clearRecord();
+  renderResetControls();
+}
+
+startAfreshBtn.addEventListener("click", () => {
+  // The visitor chose a fresh start: clear any leftover error/gate slate
+  // along with the record, landing at the exact pre-connect state.
+  machine.reset();
+  applyIntent(machine.intent);
+  gateNotice = null;
+  renderSlate();
+  applyReset({ type: "start-afresh" });
+});
+
 async function connect(): Promise<void> {
   connectBtn.disabled = true;
+  gateNotice = null;
+  renderSlate();
   setConnection("connecting");
   try {
     const { token, url } = await fetchToken();
@@ -488,7 +550,7 @@ async function connect(): Promise<void> {
     micNotice = null;
     setConnection("connected");
     engageChyron();
-    connectBtn.textContent = "End the interview";
+    applyReset({ type: "connected" });
 
     // The microphone is the primary path, but its failure must not end the
     // interview: the visitor can pass written notes over lk.chat instead
@@ -502,13 +564,20 @@ async function connect(): Promise<void> {
     renderSlate();
   } catch (err) {
     console.error(err);
-    dispatchAvatarEvent({
-      type: "connection-error",
-      message: `The interview could not begin: ${(err as Error).message}`,
-    });
+    if (err instanceof TokenGateError) {
+      // A designed refusal (studio occupied / rate limited): show the slate
+      // with retry guidance — this is not an error state.
+      gateNotice = err.notice;
+      renderSlate();
+    } else {
+      dispatchAvatarEvent({
+        type: "connection-error",
+        message: `The interview could not begin: ${(err as Error).message}`,
+      });
+    }
     await teardown();
     setConnection("disconnected");
-    connectBtn.textContent = "Begin the interview";
+    renderResetControls();
   } finally {
     connectBtn.disabled = false;
   }
@@ -524,7 +593,9 @@ async function teardown(): Promise<void> {
 }
 
 function onDisconnected(): void {
-  connectBtn.textContent = "Begin the interview";
+  // Ending with words on the record offers the export before anything is
+  // cleared (issue #13 reset flow; logic in reset.ts).
+  applyReset({ type: "ended", recordHasEntries: transcript.list().length > 0 });
   audioSink.replaceChildren();
   room = null;
   lipSync.detach();
@@ -539,8 +610,11 @@ function onDisconnected(): void {
 
 connectBtn.addEventListener("click", () => {
   if (room) {
+    // "End the interview": disconnect; onDisconnected runs the reset flow
+    // (offer the export first if there are words on the record).
     void teardown();
   } else {
+    applyReset({ type: "begin" });
     void connect();
   }
 });
@@ -568,6 +642,16 @@ void (async () => {
       onIntent: updateAvatarDom,
       studio: {
         setBrainStatus: applyBrainStatus,
+        setGateNotice: (notice) => {
+          gateNotice = notice;
+          renderSlate();
+        },
+        openWrap: () => {
+          // Force the reset flow through live → wrap so the export offer
+          // can be reviewed/screenshotted without a LiveKit session.
+          applyReset({ type: "connected" });
+          applyReset({ type: "ended", recordHasEntries: true });
+        },
         seedRecord: () => {
           transcript.clear();
           transcript.beginSegment("d1", "you");

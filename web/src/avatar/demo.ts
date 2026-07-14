@@ -10,6 +10,7 @@ import {
   type AgentEvent,
   type AvatarIntent,
 } from "./stateMachine.ts";
+import { gateNoticeFor, type GateNotice } from "../gate.ts";
 import type { RmsLipSync } from "./lipSync.ts";
 import type { AvatarView } from "./Live2DAvatar.ts";
 
@@ -29,6 +30,10 @@ export interface DemoContext {
    */
   studio?: {
     setBrainStatus: (status: string) => void;
+    /** Show/clear a token-server gate slate (busy / rate-limited, #13). */
+    setGateNotice: (notice: GateNotice | null) => void;
+    /** Drive the reset flow to its wrap state (export offer, #13). */
+    openWrap: () => void;
     seedRecord: () => void;
     offerNoteCard: () => void;
   };
@@ -254,7 +259,7 @@ export function startAvatarDemo(context: DemoContext): void {
   );
   button("Disconnect", () => dispatch({ type: "disconnected" }));
 
-  // Studio-chrome states (issue #33 design review).
+  // Studio-chrome states (issue #33 design review; #13 gate + wrap states).
   const studio = context.studio;
   if (studio) {
     let busy = false;
@@ -264,6 +269,35 @@ export function startAvatarDemo(context: DemoContext): void {
     });
     button("Seed record", () => studio.seedRecord());
     button("Mic-fail note", () => studio.offerNoteCard());
+    // The same refusals the token server mints, rendered via the same pure
+    // mapping the live client uses (gate.ts fallback wording).
+    const gateNotices: Record<GateNotice["kind"], GateNotice> = {
+      busy: gateNoticeFor(409, { detail: { reason: "busy" } })!,
+      "rate-limited": gateNoticeFor(429, null)!,
+    };
+    let gate: GateNotice["kind"] | null = null;
+    const toggleGate = (kind: GateNotice["kind"]): void => {
+      gate = gate === kind ? null : kind;
+      studio.setGateNotice(gate === null ? null : gateNotices[gate]);
+    };
+    button("Occupied (409)", () => toggleGate("busy"));
+    button("Rate limited (429)", () => toggleGate("rate-limited"));
+    button("End → wrap", () => {
+      studio.seedRecord();
+      studio.openWrap();
+    });
+
+    // Headless-screenshot preset: ?avatarDemo=1&studio=<state> drives one of
+    // the studio states on load, no clicking required — and hides this
+    // panel so the screenshot shows the visitor's view.
+    const preset = new URLSearchParams(location.search).get("studio");
+    if (preset === "occupied") toggleGate("busy");
+    else if (preset === "rate-limited") toggleGate("rate-limited");
+    else if (preset === "wrap") {
+      studio.seedRecord();
+      studio.openWrap();
+    } else if (preset === "busy") studio.setBrainStatus("busy");
+    if (preset !== null) panel.hidden = true;
   }
 
   // --- FPS / state readout (50+ FPS is an acceptance criterion) ------------
