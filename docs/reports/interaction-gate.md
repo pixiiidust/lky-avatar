@@ -90,10 +90,38 @@ great"), so the 350 ms p50 pass is corroborated by ear.
 
 ## Residuals / queued verification
 
-- The live agent worker at the time of the session predated PR #38, so the
-  new `INTERRUPT` log lines haven't appeared in a live session yet. Next
-  live session (any purpose) should show one per barge-in; the probe's
-  external measurement stands as the gate evidence regardless.
-- Worst-trial interrupt latency (667 ms detected→silence) is above target;
-  if visitors ever report sluggish barge-in, re-run the probe with more
-  trials before tuning.
+- ~~The live agent worker at the time of the session predated PR #38, so the
+  new `INTERRUPT` log lines haven't appeared in a live session yet.~~
+  **Resolved — see addendum below.**
+- Worst-trial interrupt latency at the probe's external seam is above target;
+  see the addendum for why the agent-side measurement is the authoritative
+  one and the external figure includes a double network round-trip.
+
+## Addendum (2026-07-14, late evening): live INTERRUPT lines + second probe run
+
+After the instrumented agent (PR #38) went live, a second probe run
+(`evals/results/barge_in_probe_c6ca68c.json`, 6/6 interrupted) surfaced two
+refinements — both recorded here honestly, and both *strengthening* the
+verdict:
+
+1. **The deployed min-interrupt window is 0.25 s, not 0.3 s.** `.env` sets
+   `LKY_INTERRUPT_MIN_SEC=0.25`, overriding the 0.3 default; the gate-run
+   probe executed from a worktree without `.env`, so its detected→silence
+   column subtracted 50 ms too much (its raw column is unaffected).
+2. **The agent's own `INTERRUPT` lines are now the authoritative
+   interruption-to-silence measurement**, and they are unambiguous: across
+   7 live barge-ins, playback stopped **18–21 ms after detection** (one
+   313 ms outlier on the first post-AEC-warmup interrupt) — raw
+   user-speech-onset → playback-stopped ≈ **270 ms including the deliberate
+   250 ms window**. The raw figure alone beats the ≤ 350 ms target.
+3. The probe's external numbers (run 2: detected→silence p50 420 ms) sit
+   ~150–400 ms above the agent-side truth because they traverse LiveKit
+   Cloud **twice** (probe speech up, agent audio back) and vary run-to-run
+   with network conditions. A real visitor experiences one leg, not two.
+   Treat the probe as a regression *alarm* (did 6/6 interrupt? did agent-side
+   lines stay ~20 ms?), not as the gate figure.
+
+Also verified in the same pass: typed-note input end-to-end (written
+question over `lk.chat` → spoken reply, issue #33/#40 seam) — first audio
+4.66 s after the note, consistent with the TTS-dominated first-audio
+decomposition above.
