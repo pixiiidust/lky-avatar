@@ -97,6 +97,61 @@ If any key is missing or still a `PLACEHOLDER_` value, the agent refuses to
 start with a message naming the offending env vars, and the token server
 answers `503` with the same guidance.
 
+## Running with the LKY brain
+
+Issue #6 swaps the skeleton's stock LLM for the self-hosted LKY brain — the
+browser conversation is then answered *in the LKY persona* (still in a stock
+voice until issue #8). The swap is pure configuration; no code changes.
+
+### 1. Start the brain server
+
+Follow [`services/brain_api/run_real.md`](services/brain_api/run_real.md):
+the real engine (Qwen3-14B + epoch-2 adapter, 4-bit NF4) runs under WSL and
+takes several minutes to load. Wait for `brain api ready` in its log, then
+confirm from Windows:
+
+```bash
+curl -s http://127.0.0.1:8000/health   # model_loaded: true
+```
+
+(Keyless dry run without the GPU: start the brain with `BRAIN_ENGINE=fake`
+instead — same endpoint, deterministic answers. See
+[`services/brain_api/README.md`](services/brain_api/README.md).)
+
+### 2. Flip three env vars
+
+In your repo-root `.env`, replace the stock-LLM trio with the brain
+(this exact block is also documented in `.env.example` under BRAIN MODE):
+
+```dotenv
+OPENAI_BASE_URL=http://127.0.0.1:8000/v1
+OPENAI_API_KEY=local-development   # any value; the local seam doesn't authenticate
+SKELETON_LLM_MODEL=lky
+```
+
+Optional persona knobs (defaults built in): `LKY_SIM_DATE=2026-07-13` sets
+the simulated present day; `LKY_PROMPT_VARIANT=B` selects the time-traveler
+framing variant (A = vendored persona prompt alone, B = + present-day
+awareness / anti-fabrication sentence — issue #2's eval decides which
+ships). `LKY_MAX_TOKENS=320` is the spoken-answer budget.
+
+### 3. Run the agent as before
+
+Restart the voice agent (`python agent.py dev`); token server and web client
+are unchanged. What you should experience on top of the skeleton behavior:
+
+- Answers come in LKY's persona — short spoken style (~2–5 sentences).
+  Reality check: the real brain decodes at ~2–3 tok/s on the local GPU, so
+  first audio takes noticeably longer than with a hosted LLM.
+- Conversation history holds across turns within your session; if you
+  interrupt him, only the words you actually heard are remembered.
+- A second simultaneous visitor (e.g. a second browser tab while an answer
+  is generating) politely hears/sees "LKY is speaking with someone — please
+  wait." instead of degrading the live session — the status line shows the
+  busy state.
+- If the brain server is down, the agent says so and the page shows a clear
+  error state instead of crashing.
+
 ### Tests
 
 No real credentials needed:
