@@ -1,0 +1,77 @@
+{
+  "probe": "barge_in",
+  "issue": 11,
+  "git_sha": "c612208",
+  "timestamp": "2026-07-14T21:24:18.263046+00:00",
+  "room": "barge-probe-c612208-1784064170",
+  "config": {
+    "trials_target": 6,
+    "grace_s": 2.0,
+    "silence_gap_s": 0.5,
+    "min_interrupt_s": 0.3,
+    "audible_rms_threshold": 250.0,
+    "mic_sample_rate": 24000,
+    "notes": "onset->silence measured at the probe's audio-frame seam of a real LiveKit round-trip (includes network/WebRTC both ways); silence backdated to the last audible agent frame; detected->silence subtracts the agent's min-interrupt window"
+  },
+  "trials": [
+    {
+      "trial": 1,
+      "utterance": "Wait, wait, stop for a moment please. Let me ask you something different: what is your view on housing policy in Singapore?",
+      "agent_audible_before_barge_s": 2.001,
+      "onset_to_silence_ms": 878.2,
+      "detected_to_silence_ms": 578.2,
+      "interrupted": true
+    },
+    {
+      "trial": 2,
+      "utterance": "Hold on, hold on, I want to interrupt you there. What about the future of education for young Singaporeans?",
+      "agent_audible_before_barge_s": 2.025,
+      "onset_to_silence_ms": 607.2,
+      "detected_to_silence_ms": 307.2,
+      "interrupted": true
+    },
+    {
+      "trial": 3,
+      "utterance": "Excuse me, excuse me, let me stop you right there. Tell me about foreign policy and our neighbours instead.",
+      "agent_audible_before_barge_s": 2.015,
+      "onset_to_silence_ms": 967.2,
+      "detected_to_silence_ms": 667.2,
+      "interrupted": true
+    },
+    {
+      "trial": 4,
+      "utterance": "Wait a moment, wait a moment. I have a different question about the economy and jobs for the next generation.",
+      "agent_audible_before_barge_s": 1.996,
+      "onset_to_silence_ms": 455.4,
+      "detected_to_silence_ms": 155.4,
+      "interrupted": true
+    },
+    {
+      "trial": 5,
+      "utterance": "Hold on, please pause for a second. What would you say about climate change and how Singapore should respond?",
+      "agent_audible_before_barge_s": 1.987,
+      "onset_to_silence_ms": 608.7,
+      "detected_to_silence_ms": 308.7,
+      "interrupted": true
+    },
+    {
+      "trial": 6,
+      "utterance": "Wait, wait, stop for a moment please. Let me ask you something different: what is your view on housing policy in Singapore?",
+      "agent_audible_before_barge_s": 1.992,
+      "onset_to_silence_ms": 546.2,
+      "detected_to_silence_ms": 246.2,
+      "interrupted": true
+    }
+  ],
+  "summary": {
+    "n_trials": 6,
+    "n_interrupted": 6,
+    "raw_onset_to_silence_p50_ms": 608.0,
+    "raw_onset_to_silence_max_ms": 967.2,
+    "detected_to_silence_p50_ms": 307.9,
+    "detected_to_silence_max_ms": 667.2,
+    "target_ms": 350,
+    "pass_detected_p50": true,
+    "pass_raw_p50": false
+  }
+}
