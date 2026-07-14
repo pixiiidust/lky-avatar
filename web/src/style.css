@@ -1,115 +1,138 @@
+/*
+ * Interview-studio identity (issue #33) — tokens, type roles, and layout per
+ * docs/design-interview-studio.md. Two planes: the SET (left column — the
+ * subject, the studio lamp, slate cards) and the RECORD (right column — his
+ * words as typeset print, the visitor's as notes), with the locked disclosure
+ * as a broadcast chyron across the bottom.
+ *
+ * Palette (sampled from the chosen portrait):
+ *   --set     the mottled studio backdrop      --paper  the record's stock
+ *   --ink     the tie's navy stripe            --suit   the suit's cool grey
+ *   --oxblood the tie's red — the ONLY accent (lamp, live elements, focus)
+ * Dark mode is the same studio with the house lights dimmed, never inverted.
+ */
+
 :root {
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --set: #e6e3de;
+  --paper: #f2f0eb;
+  --ink: #232c42;
+  --suit: #b9bec6;
+  --oxblood: #7e2530;
+  --lamp-hot: #a3303c; /* the lit glass, one step brighter than the accent */
+
+  --ink-60: color-mix(in srgb, var(--ink) 62%, transparent);
+  --ink-38: color-mix(in srgb, var(--ink) 38%, transparent);
+  --rule: color-mix(in srgb, var(--suit) 55%, transparent);
+
+  --serif: "Literata Variable", "Iowan Old Style", Georgia, serif;
+  --grotesk: "Archivo Variable", "Segoe UI", system-ui, sans-serif;
+
+  font-family: var(--grotesk);
   color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --set: #211f1d;
+    --paper: #2a2724;
+    --ink: #d9d4ca;
+    --suit: #4a4740;
+    --oxblood: #c2454e;
+    --lamp-hot: #d95a60;
+  }
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  background: #f5f4f0;
-  color: #1d1d1b;
+  background: var(--set);
+  color: var(--ink);
 }
 
-@media (prefers-color-scheme: dark) {
-  body {
-    background: #17181a;
-    color: #eceae5;
-  }
+:focus-visible {
+  outline: 2px solid var(--oxblood);
+  outline-offset: 2px;
 }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- Frame: studio above, chyron pinned to the bottom edge -------------- */
 
 #app {
-  width: min(44rem, 100%);
-  padding: 0 1rem 3rem;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  height: 100dvh;
 }
 
-/* Persistent AI disclosure — spec requires it unmissable from day one. */
-#disclosure {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  margin: 0 -1rem;
-  padding: 0.6rem 1rem;
-  background: #7a1f1f;
-  color: #fff;
-  font-size: 0.85rem;
-  font-weight: 600;
+#studio {
+  display: grid;
+  grid-template-columns: minmax(0, 11fr) minmax(0, 9fr);
+  min-height: 0;
+}
+
+/* --- The set ------------------------------------------------------------ */
+
+#set {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 0;
+  padding: 1.25rem 1.5rem 1rem;
+  position: relative;
+  /* one soft key light on the backdrop — the set's only decoration */
+  background: radial-gradient(
+    ellipse 70% 55% at 50% 30%,
+    color-mix(in srgb, var(--paper) 55%, transparent),
+    transparent 75%
+  );
+}
+
+#slate-head {
+  align-self: stretch;
   text-align: center;
 }
 
-header {
-  margin: 1.5rem 0 1rem;
+.eyebrow {
+  margin: 0 0 0.3rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-60);
 }
 
 h1 {
-  font-size: 1.4rem;
   margin: 0;
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: clamp(1.35rem, 2.2vw, 1.7rem);
+  letter-spacing: 0.01em;
 }
 
-.subtitle {
-  margin: 0.2rem 0 0;
-  opacity: 0.65;
-  font-size: 0.9rem;
-}
-
-#controls {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin: 1rem 0;
-}
-
-#connect-btn {
-  font: inherit;
-  padding: 0.5rem 1.4rem;
-  border-radius: 0.4rem;
-  border: 1px solid currentColor;
-  cursor: pointer;
-  background: transparent;
-  color: inherit;
-}
-
-#connect-btn:disabled {
-  opacity: 0.5;
-  cursor: wait;
-}
-
-#status {
-  font-size: 0.9rem;
-}
-
-#status[data-state="connected"] {
-  color: #1c7c2e;
-}
-
-#status[data-state="busy"] {
-  color: #8a6d00;
-}
-
-#status[data-state="error"] {
-  color: #b3261e;
-}
-
-/* --- Avatar ------------------------------------------------------------ */
-
-#avatar-panel {
-  margin: 1rem 0;
+h1 em {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--ink-60);
 }
 
 #avatar-stage {
   position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
-  aspect-ratio: 4 / 3;
-  max-height: 26rem;
-  overflow: hidden;
-  border: 1px solid rgba(128, 128, 128, 0.35);
-  border-radius: 0.5rem;
-  background: radial-gradient(
-    ellipse at 50% 30%,
-    rgba(128, 128, 128, 0.12),
-    transparent 70%
-  );
   display: flex;
   align-items: center;
   justify-content: center;
@@ -123,8 +146,8 @@ h1 {
 
 .avatar-fallback-image {
   max-width: 100%;
-  max-height: 80%;
-  opacity: 0.85;
+  max-height: 82%;
+  opacity: 0.92;
 }
 
 .avatar-fallback-note {
@@ -134,43 +157,476 @@ h1 {
   right: 0;
   margin: 0;
   text-align: center;
+  font-size: 0.75rem;
+  color: var(--ink-60);
+}
+
+/* --- The studio lamp (signature element) --------------------------------- */
+
+#set-floor {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.75rem 0 0.25rem;
+}
+
+#studio-lamp {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.lamp-face {
+  position: relative;
+  width: 88px;
+  height: 30px;
+  border-radius: 5px;
+  /* the housing */
+  background: color-mix(in srgb, var(--ink) 82%, var(--set));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--paper) 25%, transparent),
+    0 1px 2px color-mix(in srgb, var(--ink) 30%, transparent);
+}
+
+/* the glass */
+.lamp-face::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--ink) 60%, black);
+  transition: background 250ms ease;
+}
+
+/* the glow — its own layer; ONLY opacity animates (canvas keeps its FPS) */
+.lamp-face::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 3px;
+  background: var(--lamp-hot);
+  box-shadow:
+    0 0 10px 2px color-mix(in srgb, var(--lamp-hot) 75%, transparent),
+    0 0 26px 8px color-mix(in srgb, var(--lamp-hot) 35%, transparent);
+  opacity: 0;
+  transition: opacity 250ms ease;
+  will-change: opacity;
+}
+
+#studio-lamp[data-light="low"] .lamp-face::after {
+  opacity: 0.42;
+}
+
+#studio-lamp[data-light="full"] .lamp-face::after {
+  opacity: 1;
+}
+
+#studio-lamp[data-light="pulse"] .lamp-face::after {
+  opacity: 0.42;
+  animation: lamp-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes lamp-breathe {
+  0%,
+  100% {
+    opacity: 0.28;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+/* a cold set: the housing itself recedes */
+#studio-lamp[data-live="0"] .lamp-face {
+  opacity: 0.55;
+}
+
+.lamp-caption {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-60);
+}
+
+#studio-lamp[data-light="full"] .lamp-caption {
+  color: var(--oxblood);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #studio-lamp[data-light="pulse"] .lamp-face::after {
+    animation: none;
+    opacity: 0.6;
+  }
+  .lamp-face::before,
+  .lamp-face::after {
+    transition: none;
+  }
+}
+
+/* --- Controls ------------------------------------------------------------ */
+
+button {
+  font-family: var(--grotesk);
+}
+
+#connect-btn {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.6rem 1.6rem;
+  border: 1px solid var(--ink-60);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 150ms ease, color 150ms ease;
+}
+
+#connect-btn:hover:not(:disabled) {
+  border-color: var(--oxblood);
+  color: var(--oxblood);
+}
+
+#connect-btn:disabled {
+  opacity: 0.45;
+  cursor: wait;
+}
+
+/* --- Slate cards (busy / error / mic notices) ----------------------------- */
+
+#slate-card {
+  margin: 0.75rem 0 0.25rem;
+  padding: 0.8rem 1.4rem;
+  max-width: 34rem;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--oxblood);
+  text-align: left;
+}
+
+#slate-card[data-tone="quiet"] {
+  border-left-color: var(--suit);
+}
+
+.slate-caption {
+  margin: 0 0 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-60);
+}
+
+.slate-message {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+/* --- The record ----------------------------------------------------------- */
+
+#record {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--paper);
+  border-left: 1px solid var(--rule);
+  padding: 1.25rem 0 0.75rem;
+}
+
+.record-head {
+  margin: 0 1.75rem 0.9rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--grotesk);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-60);
+}
+
+#transcript {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 1.75rem 1rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+#transcript li {
+  margin: 0 0 1.05rem;
+}
+
+#transcript li.continues {
+  margin-top: -0.45rem;
+}
+
+#transcript .speaker {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-size: 0.6563rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-60);
+}
+
+#transcript li.continues .speaker {
+  display: none;
+}
+
+#transcript .text {
+  display: block;
+  margin: 0;
+}
+
+/* His voice: the typeset record. */
+#transcript li[data-speaker="lee"] .text {
+  font-family: var(--serif);
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  letter-spacing: 0.002em;
+}
+
+/* The interviewer is not the star: smaller, italic, inset. */
+#transcript li[data-speaker="you"] {
+  padding-left: 1.4rem;
+}
+
+#transcript li[data-speaker="you"] .text {
+  font-family: var(--grotesk);
+  font-style: italic;
+  font-size: 0.9063rem;
+  line-height: 1.55;
+  color: var(--ink-60);
+}
+
+/* Interim speech: captions not yet settled into print. */
+#transcript li.interim .text {
+  color: var(--ink-38);
+}
+
+#transcript li[data-speaker="lee"].interim .text {
+  color: var(--ink-60);
+}
+
+#record-hint {
+  margin: 0.25rem 1.75rem 0.75rem;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--ink-60);
+}
+
+/* --- Passing a note (typed input) ----------------------------------------- */
+
+#note-details {
+  margin: 0 1.75rem;
+  border-top: 1px solid var(--rule);
+  padding: 0.65rem 0 0.35rem;
+}
+
+#note-summary {
+  cursor: pointer;
+  list-style: none;
   font-size: 0.8rem;
+  color: var(--ink-60);
+  text-decoration: underline;
+  text-decoration-color: var(--rule);
+  text-underline-offset: 3px;
+  width: fit-content;
+}
+
+#note-summary::-webkit-details-marker {
+  display: none;
+}
+
+#note-summary:hover {
+  color: var(--oxblood);
+}
+
+#note-form {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-end;
+  margin-top: 0.7rem;
+}
+
+#note-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--grotesk);
+  font-style: italic;
+  font-size: 0.9375rem;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  /* a ruled line on the record's paper, not a text box */
+  border-bottom: 1px solid var(--ink-38);
+  border-radius: 0;
+  padding: 0.3rem 0.1rem;
+}
+
+#note-input::placeholder {
+  color: var(--ink-38);
+}
+
+#note-input:focus {
+  outline: none;
+  border-bottom-color: var(--oxblood);
+}
+
+#note-send {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--ink-60);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+#note-send:hover:not(:disabled) {
+  border-color: var(--oxblood);
+  color: var(--oxblood);
+}
+
+#note-send:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+#note-status {
+  margin: 0.45rem 0 0;
+  font-size: 0.78rem;
+  color: var(--ink-60);
+}
+
+#note-status[data-tone="trouble"] {
+  color: var(--oxblood);
+}
+
+/* --- The chyron (locked disclosure as a broadcast lower-third) ------------- */
+
+#disclosure {
+  background: var(--ink);
+  color: var(--set);
+  padding: 0.55rem 1.25rem 0.55rem 1rem;
+  border-left: 6px solid var(--oxblood);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 1.45;
+}
+
+#disclosure-text {
+  margin: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  #disclosure {
+    background: #14120f;
+    color: var(--ink);
+  }
+}
+
+/*
+ * The chyron fold (small viewports, after the visitor engages): the same
+ * slate slab reduced to its caption — oxblood tab, FICTIONAL SIMULATION,
+ * an expand affordance. A fold, never a dismissal: src/chyron.ts only ever
+ * yields "full" or "pill", and the locked wording returns byte-for-byte on
+ * expand. State swaps cut like broadcast slates — no animation to reduce,
+ * so prefers-reduced-motion is respected by construction.
+ */
+
+#disclosure-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.1rem 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-align: left;
+}
+
+#disclosure-toggle[hidden] {
+  display: none;
+}
+
+/* Expanded on a small viewport: the caption row sits above the wording. */
+#disclosure[data-mode="full"] #disclosure-toggle:not([hidden]) {
+  margin-bottom: 0.3rem;
+}
+
+#disclosure[data-mode="pill"] {
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
+}
+
+#disclosure[data-mode="pill"] #disclosure-text {
+  display: none;
+}
+
+.chyron-glyph::before {
+  content: "▴"; /* the notice expands upward from the bottom edge */
+  font-size: 0.75rem;
   opacity: 0.7;
 }
 
-#avatar-status {
-  margin: 0.4rem 0 0;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #b3261e;
+#disclosure[data-mode="full"] .chyron-glyph::before {
+  content: "▾";
 }
 
-/* --- Demo panel (?avatarDemo=1) ----------------------------------------- */
+/* --- Demo panel (?avatarDemo=1) — dev chrome, deliberately plain ----------- */
 
 #demo-panel {
-  margin: 1rem 0;
+  position: fixed;
+  right: 0.75rem;
+  bottom: 3.5rem;
+  z-index: 20;
+  width: min(21rem, calc(100vw - 1.5rem));
   padding: 0.75rem;
-  border: 1px dashed rgba(128, 128, 128, 0.5);
-  border-radius: 0.5rem;
+  background: var(--paper);
+  border: 1px dashed var(--suit);
+  font-size: 0.8rem;
 }
 
 #demo-panel h2 {
-  font-size: 1rem;
+  font-size: 0.85rem;
   margin: 0 0 0.5rem;
 }
 
 .demo-buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: 0.35rem;
   margin: 0.5rem 0;
 }
 
 .demo-buttons button {
   font: inherit;
-  font-size: 0.85rem;
-  padding: 0.3rem 0.8rem;
-  border-radius: 0.4rem;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 2px;
   border: 1px solid currentColor;
   background: transparent;
   color: inherit;
@@ -180,11 +636,11 @@ h1 {
 .demo-readout {
   margin: 0;
   font-family: ui-monospace, monospace;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
 }
 
 .demo-readout[data-fps-ok="0"] {
-  color: #b3261e;
+  color: var(--oxblood);
 }
 
 .demo-log {
@@ -192,52 +648,78 @@ h1 {
   margin: 0.5rem 0 0;
   padding: 0;
   font-family: ui-monospace, monospace;
-  font-size: 0.75rem;
-  opacity: 0.7;
-  max-height: 8rem;
+  font-size: 0.68rem;
+  color: var(--ink-60);
+  max-height: 7rem;
   overflow-y: auto;
-}
-
-#transcript-panel h2 {
-  font-size: 1rem;
-  margin-bottom: 0.4rem;
-}
-
-#transcript {
-  list-style: none;
-  margin: 0;
-  padding: 0.75rem;
-  min-height: 10rem;
-  max-height: 24rem;
-  overflow-y: auto;
-  border: 1px solid rgba(128, 128, 128, 0.35);
-  border-radius: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-#transcript li {
-  display: flex;
-  gap: 0.6rem;
-}
-
-#transcript li.interim .text {
-  font-style: italic;
-  opacity: 0.6;
-}
-
-#transcript .speaker {
-  flex: 0 0 3.5rem;
-  font-weight: 600;
-  font-size: 0.85rem;
-}
-
-#transcript-hint {
-  font-size: 0.8rem;
-  opacity: 0.6;
 }
 
 #audio-sink {
   display: none;
+}
+
+/* --- Mobile: the set stacks above the record ------------------------------- */
+
+@media (max-width: 760px) {
+  #studio {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  #set {
+    padding: 0.9rem 1rem 0.6rem;
+  }
+
+  #avatar-stage {
+    flex: none;
+    height: 36dvh;
+  }
+
+  #set-floor {
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 0.6rem 0 0.35rem;
+  }
+
+  #studio-lamp {
+    gap: 0.35rem;
+  }
+
+  .lamp-face {
+    width: 72px;
+    height: 26px;
+  }
+
+  #record {
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+    padding-top: 0.9rem;
+  }
+
+  .record-head,
+  #transcript,
+  #record-hint,
+  #note-details {
+    margin-left: 1rem;
+    margin-right: 1rem;
+  }
+
+  #transcript {
+    padding-left: 0;
+    padding-right: 0.25rem;
+  }
+
+  #slate-card {
+    margin: 0.5rem 0 0.25rem;
+    padding: 0.6rem 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }

@@ -7,7 +7,14 @@
  * stream are deltas to be concatenated, and a NEW stream for the same
  * segment id REPLACES the previous text (that is how interim STT results
  * are updated). `lk.transcription_final === "true"` marks the segment done.
+ *
+ * Typed questions ("pass a note", issue #33) enter the record locally via
+ * {@link TranscriptStore.addNote}: the agent consumes `lk.chat` text input
+ * without echoing it back on the transcription topic, so the client is the
+ * one that sets the written question into the record.
  */
+
+export type SegmentKind = "spoken" | "written";
 
 export interface Segment {
   id: string;
@@ -15,6 +22,8 @@ export interface Segment {
   speaker: string;
   text: string;
   final: boolean;
+  /** spoken transcription vs a typed note passed to the interviewer */
+  kind: SegmentKind;
   /** insertion order, for stable rendering */
   order: number;
 }
@@ -22,6 +31,7 @@ export interface Segment {
 export class TranscriptStore {
   private segments = new Map<string, Segment>();
   private counter = 0;
+  private noteCounter = 0;
 
   /** Called when a new stream starts for a segment: reset its text. */
   beginSegment(id: string, speaker: string): void {
@@ -34,6 +44,7 @@ export class TranscriptStore {
         speaker,
         text: "",
         final: false,
+        kind: "spoken",
         order: this.counter++,
       });
     }
@@ -50,9 +61,27 @@ export class TranscriptStore {
     if (seg) seg.final = true;
   }
 
+  /**
+   * A typed note passed to the interviewer: enters the record already final,
+   * marked `written`. Returns the generated segment id.
+   */
+  addNote(speaker: string, text: string): string {
+    const id = `note-${this.noteCounter++}`;
+    this.segments.set(id, {
+      id,
+      speaker,
+      text,
+      final: true,
+      kind: "written",
+      order: this.counter++,
+    });
+    return id;
+  }
+
   clear(): void {
     this.segments.clear();
     this.counter = 0;
+    this.noteCounter = 0;
   }
 
   list(): Segment[] {
