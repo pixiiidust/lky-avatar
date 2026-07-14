@@ -155,6 +155,56 @@ are unchanged. What you should experience on top of the skeleton behavior:
 - If the brain server is down, the agent says so and the page shows a clear
   error state instead of crashing.
 
+## Running with the cloned voice
+
+Issue #8 swaps the stock Deepgram voice for the cloned elder LKY voice
+(blind-test winner: Chatterbox, issue #7). The voice runs as a small
+loopback-only TTS server on the same GPU as the brain (placement is
+measured-viable), and the agent selects it with one env var.
+
+### 1. Start the brain server
+
+As above — [`services/brain_api/run_real.md`](services/brain_api/run_real.md),
+wait for `brain api ready`.
+
+### 2. Start the TTS server
+
+Follow [`services/tts_server/run_real.md`](services/tts_server/run_real.md)
+(one-time dep install, then one launch command). Wait for `tts server ready`,
+then confirm from Windows:
+
+```bash
+curl -s http://127.0.0.1:8100/health   # model_loaded: true, watermark: perth
+```
+
+### 3. Flip one env var
+
+In your repo-root `.env` (with the BRAIN MODE block from the previous
+section already active):
+
+```dotenv
+TTS_PROVIDER=chatterbox
+```
+
+Optional knobs: `LKY_TTS_SPEED=0.85` (delivery-speed factor; the engine
+speaks faster than the real elder LKY, so <1 slows it toward his pace) and
+`LKY_TTS_PRONUNCIATIONS=<path.json>` (extra pronunciation respellings on
+top of the built-in Singapore-terms map).
+
+### 4. Run the agent as before
+
+Restart the voice agent. LKY now answers in the cloned elder voice; phrase
+streaming (speech starts before the full answer is generated) and barge-in
+(interruption cancels generation, the synthesis queue, and playback as one
+operation) behave exactly as with the stock voice — both come from the same
+LiveKit pipeline. If the TTS server dies mid-session the agent logs the
+failures and the conversation continues (transcript keeps flowing); set
+`TTS_PROVIDER=deepgram` and restart to fall back to the stock voice.
+
+Every sample the cloned voice produces carries Chatterbox's built-in PerTh
+audio watermark, and the TTS server binds 127.0.0.1 only — the agent is its
+sole client, and the cloned voice is never exposed as a public endpoint.
+
 ### Tests
 
 No real credentials needed:

@@ -28,6 +28,21 @@ DEFAULT_PROMPT_VARIANT = "B"
 # (services/brain_api DEFAULT_MAX_TOKENS): ~2-5 spoken sentences.
 DEFAULT_MAX_TOKENS = 320
 
+# TTS provider selection (issue #8). "deepgram" is the stock fallback and
+# the default; "chatterbox" is the cloned voice behind the loopback
+# tts_server (services/tts_server/run_real.md).
+TTS_PROVIDERS = ("deepgram", "chatterbox")
+DEFAULT_TTS_PROVIDER = "deepgram"
+DEFAULT_TTS_BASE_URL = "http://127.0.0.1:8100"
+# Delivery-speed factor sent with every cloned-voice request; <1
+# time-stretches toward the real elder LKY's pace. Measured 2026-07-14
+# against the 1990 reference set now in use: engine 2.70 words/s at
+# speed 1.0 vs 2.18 words/s in the refs -> 1.24x too fast, exact-match
+# speed 0.81. Default 0.85 sits slightly above exact-match because the
+# refs' inter-sentence pauses inflate their apparent slowness; tune live
+# with LKY_TTS_SPEED. (The report's ~1.74x figure was vs the 2005 refs.)
+DEFAULT_TTS_SPEED = 0.85
+
 
 @dataclass(frozen=True)
 class AgentConfig:
@@ -54,6 +69,15 @@ class AgentConfig:
     lky_prompt_variant: str
     # Max tokens per answer, passed to the LLM plugin (spoken-style budget).
     lky_max_tokens: int
+    # TTS provider (issue #8): "deepgram" (stock, default) | "chatterbox"
+    # (cloned voice via the loopback tts_server). Unknown values fall back
+    # to deepgram — never a crashed session over a typo.
+    tts_provider: str
+    # Cloned-voice server root (loopback only) + delivery-speed factor +
+    # optional JSON file of extra pronunciation overrides.
+    tts_base_url: str
+    tts_speed: float
+    tts_pronunciations_path: str
     # Barge-in tuning (live-session feedback 2026-07-14: interruptions
     # "sometimes worked, sometimes didn't; several tries"). The SDK default
     # requires 0.5s of continuous speech before interrupting — short
@@ -84,6 +108,14 @@ class AgentConfig:
                 env.get("LKY_PROMPT_VARIANT", "").strip() or DEFAULT_PROMPT_VARIANT
             ),
             lky_max_tokens=_get_int(env, "LKY_MAX_TOKENS", DEFAULT_MAX_TOKENS),
+            tts_provider=select_tts_provider(env.get("TTS_PROVIDER", "")),
+            tts_base_url=(
+                env.get("LKY_TTS_URL", "").strip() or DEFAULT_TTS_BASE_URL
+            ),
+            tts_speed=_get_float(env, "LKY_TTS_SPEED", DEFAULT_TTS_SPEED),
+            tts_pronunciations_path=env.get(
+                "LKY_TTS_PRONUNCIATIONS", ""
+            ).strip(),
             interrupt_min_duration=_get_float(
                 env, "LKY_INTERRUPT_MIN_SEC", 0.3
             ),
@@ -101,6 +133,17 @@ class AgentConfig:
                 else "vad"
             ),
         )
+
+
+def select_tts_provider(raw: str) -> str:
+    """Normalize TTS_PROVIDER; anything but "chatterbox" means deepgram.
+
+    Deepgram-by-default is deliberate: the stock voice is the fallback that
+    works with no local GPU server running, so a missing/typo'd value must
+    never leave a session with a dead TTS.
+    """
+    value = raw.strip().lower()
+    return value if value in TTS_PROVIDERS else DEFAULT_TTS_PROVIDER
 
 
 def _get_int(env: Mapping[str, str], key: str, default: int) -> int:
