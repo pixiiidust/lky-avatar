@@ -32,6 +32,14 @@ Issue #6 additions on top of the skeleton:
   ``lky.brain`` participant attribute (ok|busy|error) for the web client's
   busy/error states, and never retry-storms (max_retry=0).
 
+Issue #13 addition — TTS-outage honesty: if the cloned-voice server dies
+mid-session, ``LKYAgent.tts_node`` catches the synthesis failure, publishes
+the ``lky.tts`` participant attribute (ok|error), and re-delivers the reply
+as a text-only transcript turn (``_say_text_only``) instead of the silent
+void the stock pipeline produces (transcription output is synced to audio
+playout, so a turn with no audio emits no text). SDK evidence for each step
+is documented on those methods.
+
 Per-session conversation history — verified against livekit-agents 1.6.5
 source (voice/agent_activity.py, voice/generation.py):
 
@@ -59,6 +67,7 @@ clear explanation instead of a provider stack trace.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import sys
@@ -95,6 +104,7 @@ from livekit.agents import (  # noqa: E402
     llm as llm_types,
     metrics,
 )
+from livekit import rtc  # noqa: E402
 from livekit.agents.voice.io import PlaybackFinishedEvent  # noqa: E402
 from livekit.plugins import deepgram, openai, silero  # noqa: E402
 
@@ -102,6 +112,11 @@ from brain_status import (  # noqa: E402
     STATUS_ATTRIBUTE,
     STATUS_OK,
     classify_brain_error,
+)
+from tts_status import (  # noqa: E402
+    TTS_STATUS_ATTRIBUTE,
+    TTS_STATUS_OK,
+    classify_tts_error,
 )
 from config import AgentConfig, explain_unusable, unusable_keys  # noqa: E402
 from latency import InterruptLatency, InterruptTracker, LatencyTracker  # noqa: E402
@@ -124,6 +139,13 @@ BRAIN_CONN_OPTIONS = APIConnectOptions(max_retry=0, timeout=60.0)
 
 #: Reports a brain status ("ok" | "busy" | "error") to interested parties.
 StatusReporter = Callable[[str], Awaitable[None]]
+
+#: Upper bound on one text-only fallback delivery (issue #13). The text-only
+#: ``say`` forwards an already-complete string with no synthesis and no
+#: playout clock, so it finishes in well under a second; the bound only
+#: guarantees that audio output can never stay disabled forever if the SDK
+#: wedges. 30s is deliberately generous — hitting it is a bug, not tuning.
+TEXT_ONLY_SAY_TIMEOUT = 30.0
 
 
 def build_llm(config: AgentConfig) -> openai.LLM:
@@ -186,12 +208,18 @@ class LKYAgent(Agent):
         *,
         instructions: str,
         report_status: StatusReporter | None = None,
+        report_tts_status: StatusReporter | None = None,
     ) -> None:
         seeded = llm_types.ChatContext.empty()
         for turn in FEW_SHOT_TURNS:
             seeded.add_message(role=turn["role"], content=turn["content"])
         super().__init__(instructions=instructions, chat_ctx=seeded)
         self._report_status = report_status
+        self._report_tts_status = report_tts_status
+        # Serializes text-only fallback deliveries (issue #13) and keeps
+        # strong references to their tasks so they aren't GC-cancelled.
+        self._text_only_lock = asyncio.Lock()
+        self._text_only_tasks: set[asyncio.Task[None]] = set()
 
     async def _publish_status(self, status: str) -> None:
         if self._report_status is None:
@@ -200,6 +228,14 @@ class LKYAgent(Agent):
             await self._report_status(status)
         except Exception:  # never let status plumbing break the answer
             logger.exception("failed to publish brain status %r", status)
+
+    async def _publish_tts_status(self, status: str) -> None:
+        if self._report_tts_status is None:
+            return
+        try:
+            await self._report_tts_status(status)
+        except Exception:  # never let status plumbing break the answer
+            logger.exception("failed to publish tts status %r", status)
 
     async def llm_node(
         self,
@@ -242,6 +278,166 @@ class LKYAgent(Agent):
             )
             await self._publish_status(failure.status)
             yield failure.message
+
+    async def _default_tts_node(
+        self,
+        text: AsyncIterator[str],
+        model_settings: ModelSettings,
+    ) -> AsyncIterator[rtc.AudioFrame]:
+        """The SDK's stock synthesis pipeline, isolated so tests can stub it."""
+        async for frame in Agent.default.tts_node(self, text, model_settings):
+            yield frame
+
+    async def tts_node(
+        self,
+        text: AsyncIterator[str],
+        model_settings: ModelSettings,
+    ) -> AsyncIterator[rtc.AudioFrame]:
+        """Default TTS node + degraded-but-honest handling of a dead voice.
+
+        Why this exists — verified against livekit-agents 1.6.5 source (the
+        installed .venv), after live fault injection (2026-07-14) showed a
+        TTS outage producing a silent void (no audio AND no transcript):
+
+        - RoomIO syncs the room transcript to audio playout. The synced text
+          segment only starts emitting on ``on_playback_started`` — i.e.
+          after the FIRST audio frame reaches the speakers
+          (transcription/synchronizer.py: ``_main_task`` waits on
+          ``_start_fut``, set only by ``on_playback_started``).
+        - When no audio ever arrives, the audio flush sees
+          ``_pushed_duration == 0`` and rotates the segment
+          (``_SyncedAudioOutput.flush``); the rotated impl closes without
+          playback and ``_main_task`` returns WITHOUT emitting the buffered
+          text (`if self.closed and not self._playback_completed: return`).
+          The reply text is silently dropped — the observed bug.
+        - The turn's failure surfaces here: the default tts_node's
+          ``async for ev in stream`` re-raises the adapter/ChunkedStream
+          error typed (tts/tts.py ``__anext__`` re-raises the task
+          exception), e.g. providers/tts.py's APIConnectionError.
+
+        The fix: catch service-class failures (classify_tts_error), publish
+        ``lky.tts=error``, END THE GENERATOR CLEANLY (no re-raise), and
+        deliver the reply text through a queued text-only ``say`` (see
+        ``_say_text_only`` for why that provably reaches the visitor).
+        Swallowing is safe: with zero frames yielded the pipeline completes
+        instead of dying — ``_tts_inference_task`` returns False, the audio
+        channel closes empty, ``wait_for_playout`` returns immediately
+        because no segment was ever captured (io.py: target == 0), and the
+        skipped turn's message is dropped from chat history (generation.py:
+        ``played == "skipped"``), so the fallback ``say`` is history's ONLY
+        copy of the reply — exactly what the visitor received.
+
+        Recovery: ``lky.tts=ok`` is republished on the first audio frame of
+        the next successful synthesis, clearing the web's voice-down slate.
+
+        Session survival during long outages: each failed synthesis makes
+        the TTS emit a non-recoverable TTSError, and AgentSession closes
+        after ``max_unrecoverable_errors`` (3) CONSECUTIVE ones — but the
+        counter resets whenever the agent reaches the "speaking" state
+        (agent_session.py:1686), which the text-only ``say`` triggers via
+        its first-text future. Degraded turns therefore keep the session
+        alive indefinitely, while each new turn still probes the TTS for
+        recovery.
+        """
+        captured: list[str] = []
+
+        async def _tap() -> AsyncIterator[str]:
+            # Runs ahead of synthesis (the default node forwards input to
+            # the sentence tokenizer as it arrives), so on failure
+            # ``captured`` already holds everything synthesis consumed.
+            async for chunk in text:
+                captured.append(chunk)
+                yield chunk
+
+        yielded_audio = False
+        try:
+            async for frame in self._default_tts_node(_tap(), model_settings):
+                if not yielded_audio:
+                    yielded_audio = True
+                    await self._publish_tts_status(TTS_STATUS_OK)
+                yield frame
+        except Exception as exc:
+            # GeneratorExit/CancelledError (barge-in teardown) are
+            # BaseException and pass through untouched.
+            failure = classify_tts_error(exc)
+            if failure is None:
+                raise
+            logger.warning("TTS synthesis failed (voice unavailable): %s", exc)
+            await self._publish_tts_status(failure.status)
+            if yielded_audio:
+                # Mid-reply failure after audio reached the speakers: the
+                # transcript synchronizer flushes the REMAINING text itself
+                # once playout finishes un-interrupted (synchronizer.py:
+                # mark_playback_finished -> _playback_completed=True -> the
+                # word loop drains with delay=0), and the pipeline keeps the
+                # full text in history. Only the voice was lost — nothing to
+                # re-deliver.
+                return
+            # Silent-void case: no audio at all this turn. Drain the rest of
+            # the reply (the LLM may still be streaming; the pipeline feeds
+            # this channel with send_nowait, so reading here cannot block
+            # it) and deliver the whole reply as text.
+            async for chunk in text:
+                captured.append(chunk)
+            reply = "".join(captured).strip()
+            if reply:
+                self._schedule_text_only_reply(reply)
+
+    def _schedule_text_only_reply(self, reply: str) -> None:
+        """Queue the fallback delivery without blocking the failed turn.
+
+        Must not be awaited from inside ``tts_node``: the queued ``say``
+        cannot start until the CURRENT speech turn finishes, and the current
+        turn is waiting on this very generator — awaiting here would
+        deadlock. A fire-and-forget task awaits it safely instead.
+        """
+        task = asyncio.create_task(self._say_text_only(reply))
+        self._text_only_tasks.add(task)
+        task.add_done_callback(self._text_only_tasks.discard)
+
+    async def _say_text_only(self, reply: str) -> None:
+        """Deliver a reply as transcript text with no audio — provably.
+
+        Mechanism chosen after reading the installed livekit-agents 1.6.5
+        source; it is the SDK's own documented text-without-audio path (the
+        default tts_node literally instructs: "If audio output is not
+        needed, disable it using session.output.set_audio_enabled(False)"):
+
+        - ``set_audio_enabled(False)`` detaches the room audio output
+          (io.py:589), which flips the transcript synchronizer to
+          PASSTHROUGH: ``_SyncedTextOutput.capture_text`` forwards text
+          straight to the room's lk.transcription stream instead of pacing
+          it against (nonexistent) audio (synchronizer.py:747).
+        - ``session.say(text)`` then runs ``_tts_task_impl`` with
+          ``audio_output=None`` (agent_activity.py:2541 checks
+          ``output.audio_enabled``): TTS is never invoked, the text is
+          forwarded and flushed as a final transcript segment, the agent
+          state flips to "speaking" via ``first_text_fut`` (resetting the
+          SDK's unrecoverable-TTS-error counter), and the message lands in
+          chat history (agent_activity.py:2696 — ``forwarded_text`` comes
+          from the text output when audio is disabled).
+        - ``activity.say`` does not require a TTS when audio is disabled
+          (agent_activity.py:1232 only raises when audio output is enabled).
+
+        Audio is re-enabled in ``finally`` so one wedged delivery can never
+        mute the session; the lock serializes overlapping deliveries so an
+        enable/disable pair can't interleave with another delivery's. If the
+        visitor's next turn slips in during this window it degrades to the
+        same honest text-only path — never to silence.
+        """
+        try:
+            async with self._text_only_lock:
+                session = self.session
+                session.output.set_audio_enabled(False)
+                try:
+                    handle = session.say(reply)
+                    await asyncio.wait_for(
+                        handle.wait_for_playout(), TEXT_ONLY_SAY_TIMEOUT
+                    )
+                finally:
+                    session.output.set_audio_enabled(True)
+        except Exception:
+            logger.exception("text-only reply delivery failed")
 
 
 def prewarm(proc: JobProcess) -> None:
@@ -332,8 +528,20 @@ async def entrypoint(ctx: JobContext) -> None:
             {STATUS_ATTRIBUTE: status}
         )
 
+    async def report_tts_status(status: str) -> None:
+        # Same pattern for the voice (issue #13): the web client watches
+        # lky.tts for its "voice unavailable — replies continue as text"
+        # slate, cleared when a later synthesis succeeds.
+        await ctx.room.local_participant.set_attributes(
+            {TTS_STATUS_ATTRIBUTE: status}
+        )
+
     await session.start(
-        agent=LKYAgent(instructions=instructions, report_status=report_status),
+        agent=LKYAgent(
+            instructions=instructions,
+            report_status=report_status,
+            report_tts_status=report_tts_status,
+        ),
         room=ctx.room,
         room_output_options=RoomOutputOptions(
             # Publish transcriptions to the room so the web client can render
