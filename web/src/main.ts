@@ -23,6 +23,7 @@ import {
 import { lampView, type ConnectionPhase } from "./lamp.ts";
 import { chyronView } from "./chyron.ts";
 import { gateNoticeFor, type GateNotice } from "./gate.ts";
+import { voiceNoticeFor, type VoiceNotice } from "./voice.ts";
 import { nextReset, resetView, type ResetEvent, type ResetState } from "./reset.ts";
 import { RmsLipSync } from "./avatar/lipSync.ts";
 import { createAvatarView, type AvatarView } from "./avatar/Live2DAvatar.ts";
@@ -51,6 +52,12 @@ const CHAT_TOPIC = "lk.chat";
  * (brain unreachable / failed).
  */
 const BRAIN_ATTRIBUTE = "lky.brain";
+/**
+ * Participant attribute the agent publishes its voice (TTS) status on
+ * (issue #13): "ok" | "error" (cloned-voice server down — the agent keeps
+ * answering as text-only transcript turns until synthesis recovers).
+ */
+const TTS_ATTRIBUTE = "lky.tts";
 const BRAIN_BUSY_TEXT = "LKY is speaking with someone — please wait.";
 const BRAIN_ERROR_TEXT =
   "LKY's brain is unreachable right now — please try again shortly.";
@@ -108,6 +115,8 @@ let brainStatus = "ok";
 let machineMessage: string | null = null;
 /** Mic-permission fallback notice (typed input surfaced instead). */
 let micNotice: string | null = null;
+/** Voice-outage notice (TTS down; replies continue as text — issue #13). */
+let voiceNotice: VoiceNotice | null = null;
 /** Token-server refusal (single-session busy / rate limit — issue #13). */
 let gateNotice: GateNotice | null = null;
 
@@ -146,6 +155,12 @@ function renderSlate(): void {
   } else if (brainStatus === "error") {
     caption = "Off air";
     message = BRAIN_ERROR_TEXT;
+  } else if (voiceNotice !== null) {
+    // The voice server is down but the interview continues: the agent
+    // delivers his replies as text on the record (issue #13). Outranked by
+    // brain busy/error (no replies at all is the bigger truth).
+    caption = voiceNotice.caption;
+    message = voiceNotice.message;
   } else if (micNotice !== null) {
     caption = "Written questions";
     message = micNotice;
@@ -510,6 +525,14 @@ async function connect(): Promise<void> {
         if (brain) {
           applyBrainStatus(brain);
         }
+        // Voice status (issue #13): "error" slates the outage (sound is
+        // down, replies continue as text on the record); "ok" — republished
+        // on the next successful synthesis — clears it.
+        const tts = attrs[TTS_ATTRIBUTE];
+        if (tts) {
+          voiceNotice = voiceNoticeFor(tts);
+          renderSlate();
+        }
         // The agent publishes its state (listening/thinking/speaking); the
         // studio lamp is the single visible readout.
         const state = attrs["lk.agent.state"];
@@ -548,6 +571,7 @@ async function connect(): Promise<void> {
     sessionShortId = null; // fresh session, fresh export filenames
     brainStatus = "ok";
     micNotice = null;
+    voiceNotice = null;
     setConnection("connected");
     engageChyron();
     applyReset({ type: "connected" });
@@ -602,6 +626,7 @@ function onDisconnected(): void {
   agentAudible = false;
   brainStatus = "ok";
   micNotice = null;
+  voiceNotice = null;
   setConnection("disconnected");
   // The machine keeps a visible error state through disconnect; a clean
   // disconnect returns the avatar to idle.

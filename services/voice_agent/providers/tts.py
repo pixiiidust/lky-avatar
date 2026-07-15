@@ -21,12 +21,14 @@ verified against livekit-agents 1.6.5 source:
   ``ChunkedStream`` here (aborting the HTTP request) and drops every queued
   sentence — one atomic cancellation, identical to the Deepgram path.
 
-Failure behavior: errors are raised as the SDK's ``APIError`` family, so a
-dead/timing-out TTS server flows into the session's existing error handling
-(``AgentSession._on_error`` tolerates ``max_unrecoverable_errors`` TTS
-failures before closing; each failed turn is logged and the conversation —
-including the streamed transcript — continues). Flipping ``TTS_PROVIDER``
-back to ``deepgram`` is the operator-level fallback.
+Failure behavior: errors are raised as the SDK's ``APIError`` family.
+Live fault injection (2026-07-14, issue #13) showed that the SDK alone does
+NOT keep the transcript flowing on this path — transcription output is
+synced to audio playout, so a turn whose synthesis fails emits neither
+audio nor text. ``LKYAgent.tts_node`` (agent.py) therefore catches these
+errors, publishes ``lky.tts=error``, and re-delivers the reply as a
+text-only transcript turn; classification lives in tts_status.py. Flipping
+``TTS_PROVIDER`` back to ``deepgram`` remains the operator-level fallback.
 
 The pronunciation map is applied here, per phrase, just before the request:
 the SDK emits the visitor-facing transcript from the ORIGINAL sentence

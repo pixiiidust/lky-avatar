@@ -214,9 +214,16 @@ Restart the voice agent. LKY now answers in the cloned elder voice; phrase
 streaming (speech starts before the full answer is generated) and barge-in
 (interruption cancels generation, the synthesis queue, and playback as one
 operation) behave exactly as with the stock voice — both come from the same
-LiveKit pipeline. If the TTS server dies mid-session the agent logs the
-failures and the conversation continues (transcript keeps flowing); set
-`TTS_PROVIDER=deepgram` and restart to fall back to the stock voice.
+LiveKit pipeline. If the TTS server dies mid-session the interview drops to
+a degraded-but-honest mode: the agent publishes `lky.tts=error`, the page
+shows a "Sound is down" slate in the studio's voice, and his replies keep
+arriving — as text-only turns on the record, with no audio. (The SDK alone
+would produce a silent void here: transcription output is synced to audio
+playout, so a turn whose synthesis fails emits neither sound nor text — the
+agent re-delivers the reply text explicitly; see `LKYAgent.tts_node`.) Once
+the TTS server is back, the next answer speaks again, `lky.tts` returns to
+`ok`, and the slate clears — no restart needed. Set `TTS_PROVIDER=deepgram`
+and restart to fall back to the stock voice for the rest of the session.
 
 Every sample the cloned voice produces carries Chatterbox's built-in PerTh
 audio watermark, and the TTS server binds 127.0.0.1 only — the agent is its
