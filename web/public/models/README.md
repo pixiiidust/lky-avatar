@@ -8,7 +8,7 @@ LKY model later.
 the placeholder, size and provenance on the final model). Only this README
 and `.gitkeep` are tracked.
 
-## Placeholder model: Hiyori Momose (`hiyori/`)
+## Placeholder model: Natori (`natori/`)
 
 Downloaded — not committed — by running from the repo root:
 
@@ -16,20 +16,23 @@ Downloaded — not committed — by running from the repo root:
 python scripts/fetch_placeholder_model.py
 ```
 
-The web client loads it from `/models/hiyori/Hiyori.model3.json`
-(`DEFAULT_MODEL_URL` in `web/src/avatar/Live2DAvatar.ts`).
+The web client loads it from `/models/natori/Natori.model3.json`
+(`DEFAULT_MODEL_URL` in `web/src/avatar/Live2DAvatar.ts`). Natori (adult
+man, formal wear) replaced the original Hiyori placeholder on 2026-07-15 at
+the operator's request — the closest subject match among the free samples;
+`--model hiyori` still fetches the old one.
 
 | | |
 |---|---|
-| Model | Hiyori Momose (桃瀬ひより), official Live2D sample model |
-| Source | <https://github.com/Live2D/CubismWebSamples>, tag `5-r.5`, `Samples/Resources/Hiyori/` |
+| Model | Natori (successor placeholder) / Hiyori Momose (original), official Live2D sample models |
+| Source | <https://github.com/Live2D/CubismWebSamples>, tag `5-r.5`, `Samples/Resources/<Model>/` |
 | License | [Live2D Free Material License Agreement](https://www.live2d.com/eula/live2d-free-material-license-agreement_en.html) |
 | Per-model terms | [Sample model workmanship terms](https://www.live2d.com/eula/live2d-sample-model-terms_en.html) |
-| License copies | `hiyori/LICENSE.md` and `hiyori/NOTICE.md` are downloaded alongside the model |
+| License copies | `<model>/LICENSE.md` and `<model>/NOTICE.md` are downloaded alongside the model |
 
 License notes (verified 2026-07-13 against the repo's `LICENSE.md`):
 
-- The sample models listed in that file (including Hiyori) are provided
+- The sample models listed in that file (including Hiyori and Natori) are provided
   under the **Free Material License Agreement**, which permits individuals
   and small-scale enterprises (annual revenue ≤ 10M JPY) to use them in
   published applications. This project is a personal, non-commercial demo,

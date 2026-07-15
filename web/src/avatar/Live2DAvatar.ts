@@ -29,13 +29,15 @@ import { RmsLipSync } from "./lipSync.ts";
 import { IdleMotion } from "./idle.ts";
 import { intentOf, INITIAL_SNAPSHOT, type AvatarIntent } from "./stateMachine.ts";
 
-/** Default placeholder model location (see scripts/fetch_placeholder_model.py). */
-export const DEFAULT_MODEL_URL = "/models/hiyori/Hiyori.model3.json";
+/** Default placeholder model location (see scripts/fetch_placeholder_model.py).
+ * Natori (adult man, formal wear) — the closest subject match in Live2D's
+ * free samples; replaced Hiyori 2026-07-15 at the operator's request. */
+export const DEFAULT_MODEL_URL = "/models/natori/Natori.model3.json";
 export const DEFAULT_FALLBACK_IMAGE_URL = "/avatar-fallback.svg";
 
 /** What main.ts (and the demo) talk to, regardless of rendering mode. */
 export interface AvatarView {
-  readonly mode: "live2d" | "fallback";
+  readonly mode: "live2d" | "sprite" | "fallback";
   /** Why the fallback engaged (fallback mode only). */
   readonly fallbackReason?: string;
   applyIntent(intent: AvatarIntent): void;
@@ -45,6 +47,14 @@ export interface AvatarView {
 }
 
 export interface AvatarViewOptions {
+  /**
+   * Renderer selection. "sprite" (default) animates the elderly-statesman
+   * portrait set — the operator retired the anime-sample placeholder
+   * 2026-07-15 because no free Live2D model matches the subject. "live2d"
+   * keeps the Cubism path exercised for the #12 custom rig (also reachable
+   * with ?renderer=live2d).
+   */
+  renderer?: "sprite" | "live2d";
   modelUrl?: string;
   fallbackImageUrl?: string;
   lipSync?: RmsLipSync;
@@ -60,7 +70,16 @@ export async function createAvatarView(
   options: AvatarViewOptions = {},
 ): Promise<AvatarView> {
   const lipSync = options.lipSync ?? new RmsLipSync();
+  const renderer =
+    options.renderer ??
+    (new URLSearchParams(window.location.search).get("renderer") === "live2d"
+      ? "live2d"
+      : "sprite");
   try {
+    if (renderer === "sprite") {
+      const { SpriteAvatarView } = await import("./SpriteAvatar.ts");
+      return new SpriteAvatarView(container, lipSync);
+    }
     await loadCubismCore();
     const avatar = await Live2DAvatar.create(container, {
       modelUrl: options.modelUrl ?? DEFAULT_MODEL_URL,
@@ -70,7 +89,7 @@ export async function createAvatarView(
     return avatar;
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
-    console.warn("Live2D unavailable, using static fallback:", reason);
+    console.warn(`avatar renderer "${renderer}" unavailable, using static fallback:`, reason);
     return new StaticFallbackView(
       container,
       options.fallbackImageUrl ?? DEFAULT_FALLBACK_IMAGE_URL,

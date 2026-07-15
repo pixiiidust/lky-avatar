@@ -1,5 +1,28 @@
 # Session handoff — lky-avatar orchestration (2026-07-14, night — run complete)
 
+## Update 2026-07-15 (evening): fine-tuned voice live, avatar swapped, next frontier is facts
+
+- **The fine-tuned LKY voice is in production and passed its first live
+  sessions on the operator's ear** ("everything was perfect" — accent,
+  pacing, pronunciation). Integration: PR #44 (`LKY_TTS_T3` overlay);
+  evidence: [`reports/tts-finetuned-integration.md`](reports/tts-finetuned-integration.md).
+  Serve with the `run_real.md` launch command — it now sets `LKY_TTS_T3`.
+- **The anime placeholder is retired.** Default avatar is now a sprite view
+  animating the operator's elderly-statesman portrait set
+  (`web/src/avatar/SpriteAvatar.ts`, frames in `web/public/avatar/portrait/`):
+  state-mapped expressions, RMS mouth, blink, breathing. Live2D path stays
+  reachable (`?renderer=live2d`, stock model now Natori via
+  `scripts/fetch_placeholder_model.py`) and remains the vehicle for the #12
+  custom rig. Chyron moved to the top edge (wording untouched).
+- **New open thread — issue #45 (RAG fact grounding):** the persona brain
+  fabricates biography (claimed Toa Payoh/Ang Mo Kio as his constituencies,
+  invented a 1984 resignation and a second Japanese occupation). Voice work
+  is done; factual grounding is the next quality frontier. Plan and
+  acceptance sketch in the issue. Related: Deepgram keyword boosting for SG
+  proper nouns (garbled on STT input), which also seeds the TTS
+  pronunciation-lexicon follow-up recorded in lky-voice's verdict docs.
+- lky-voice issues #7/#8 are complete and awaiting the operator's close.
+
 ## Resume prompt (paste into a new session)
 
 ```

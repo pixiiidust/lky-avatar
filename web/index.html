@@ -8,6 +8,32 @@
   </head>
   <body>
     <div id="app">
+      <!-- Spec requirement: persistent, unmissable AI disclosure.
+           Wording chosen by the operator, 2026-07-14 — LOCKED; presentation
+           (the broadcast chyron) is the design. Moved to the top edge
+           2026-07-15 (operator: bottom placement blocked the controls).
+           On small viewports, after the visitor engages, the chyron folds
+           to the one-line slate pill — a fold, never a dismissal (logic in
+           src/chyron.ts). -->
+      <footer id="disclosure" role="note" data-mode="full">
+        <button
+          id="disclosure-toggle"
+          type="button"
+          aria-controls="disclosure-text"
+          aria-expanded="false"
+          hidden
+        >
+          <span class="chyron-title">Fictional simulation</span>
+          <span class="chyron-glyph" aria-hidden="true"></span>
+        </button>
+        <p id="disclosure-text">
+          Fictional AI simulation of Lee Kuan Yew in the present day, as an
+          experiment. Generated responses are not authentic quotations. Not
+          affiliated with or endorsed by his family or the Government of
+          Singapore.
+        </p>
+      </footer>
+
       <main id="studio">
         <!-- The set: programme slate, the subject, the studio lamp. -->
         <section id="set" aria-label="Interview set">
@@ -104,30 +130,6 @@
           </div>
         </section>
       </main>
-
-      <!-- Spec requirement: persistent, unmissable AI disclosure.
-           Wording chosen by the operator, 2026-07-14 — LOCKED; presentation
-           (the broadcast chyron) is the design. On small viewports, after the
-           visitor engages, the chyron folds to the one-line slate pill below —
-           a fold, never a dismissal (logic in src/chyron.ts). -->
-      <footer id="disclosure" role="note" data-mode="full">
-        <button
-          id="disclosure-toggle"
-          type="button"
-          aria-controls="disclosure-text"
-          aria-expanded="false"
-          hidden
-        >
-          <span class="chyron-title">Fictional simulation</span>
-          <span class="chyron-glyph" aria-hidden="true"></span>
-        </button>
-        <p id="disclosure-text">
-          Fictional AI simulation of Lee Kuan Yew in the present day, as an
-          experiment. Generated responses are not authentic quotations. Not
-          affiliated with or endorsed by his family or the Government of
-          Singapore.
-        </p>
-      </footer>
 
       <!-- Keyless demo controls; shown only with ?avatarDemo=1 -->
       <section id="demo-panel" hidden>
