@@ -46,7 +46,10 @@ cd web
 npm install
 cd ..
 
-# Placeholder Live2D avatar model (licensed Live2D sample; never committed)
+# OPTIONAL: stock Live2D model (licensed Live2D sample; never committed).
+# The default avatar is the bundled portrait sprite (web/public/avatar/) —
+# this fetch is only needed for the Live2D path (?renderer=live2d), which
+# stays exercised for the #12 custom rig.
 python scripts/fetch_placeholder_model.py
 ```
 
@@ -170,9 +173,14 @@ are unchanged. What you should experience on top of the skeleton behavior:
 ## Running with the cloned voice
 
 Issue #8 swaps the stock Deepgram voice for the cloned elder LKY voice
-(blind-test winner: Chatterbox, issue #7). The voice runs as a small
-loopback-only TTS server on the same GPU as the brain (placement is
-measured-viable), and the agent selects it with one env var.
+(blind-test winner: Chatterbox, issue #7 — and since 2026-07-15 the
+**fine-tuned** Chatterbox: a LoRA trained on his real speech in the
+[`lky-voice`](../lky-voice) sister repo, eval-gate verdict "integrate" on an
+18/20 operator blind listen; served via `LKY_TTS_T3`, see
+[`docs/reports/tts-finetuned-integration.md`](docs/reports/tts-finetuned-integration.md)).
+The voice runs as a small loopback-only TTS server on the same GPU as the
+brain (placement is measured-viable), and the agent selects it with one env
+var.
 
 ### 1. Start the brain server
 

@@ -1,7 +1,7 @@
 /**
  * Disclosure chyron — fold/expand logic (issue #33, operator revision).
  *
- * The locked disclosure wording runs as a broadcast chyron across the bottom
+ * The locked disclosure wording runs as a broadcast chyron across the top
  * edge. On a small viewport it is a five-line slab, so once the visitor has
  * engaged (first connect, or a first turn on the record) the chyron folds to
  * a one-line slate pill — the oxblood tab and FICTIONAL SIMULATION — with an
