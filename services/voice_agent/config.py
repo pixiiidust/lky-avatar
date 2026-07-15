@@ -35,12 +35,13 @@ TTS_PROVIDERS = ("deepgram", "chatterbox")
 DEFAULT_TTS_PROVIDER = "deepgram"
 DEFAULT_TTS_BASE_URL = "http://127.0.0.1:8100"
 # Delivery-speed factor sent with every cloned-voice request; <1
-# time-stretches toward the real elder LKY's pace. Measured 2026-07-14
-# against the 1990 reference set now in use: engine 2.70 words/s at
-# speed 1.0 vs 2.18 words/s in the refs -> 1.24x too fast, exact-match
-# speed 0.81. Default 0.85 sits slightly above exact-match because the
-# refs' inter-sentence pauses inflate their apparent slowness; tune live
-# with LKY_TTS_SPEED. (The report's ~1.74x figure was vs the 2005 refs.)
+# time-stretches toward the real elder LKY's pace. With the fine-tuned t3
+# (lky-voice #8, LKY_TTS_T3 on the server) pacing is learned at generation
+# time — the LoRA slowed delivery ~6% toward the real rate and the operator's
+# blind listen preferred it unstretched (18/20) — so the default stays 1.0
+# and the time-stretch path (known echo artifact) stays idle. Historical
+# stock-voice calibration (2026-07-14, 1990 refs): exact-match speed 0.81,
+# recommended 0.85; only relevant if serving the stock t3 again.
 DEFAULT_TTS_SPEED = 1.0
 
 

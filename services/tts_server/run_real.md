@@ -1,11 +1,15 @@
 # Running the cloned-voice TTS server (GPU, WSL)
 
-The cloned elder voice (blind-test winner: Chatterbox — issue #7) is
-CUDA-only and runs under **WSL** in the `~/tts-chatterbox` venv
+The cloned elder voice (blind-test winner: Chatterbox — issue #7; since
+2026-07-15 serving the **fine-tuned t3** from lky-voice #8, eval-gate
+verdict "integrate": blind listen 18/20, sim 0.8900 vs 0.8693, WER 0.0390)
+is CUDA-only and runs under **WSL** in the `~/tts-chatterbox` venv
 (torch 2.13+cu130, chatterbox-tts, `setuptools<81`). Same-GPU placement
-beside the resident brain is measured-viable (RTF 0.36–0.49 with the 14B
-brain loaded — docs/reports/voice-blind-test-results.md), so this server and
-the brain server run together on the 16 GB card.
+beside the resident brain is measured-viable (fine-tuned t3: RTF 0.35–0.40
+with the 14B brain loaded, 10-turn benchmark
+`evals/results/tts_placement_lora-e14_ad1b5a6.json`; stock voice history:
+docs/reports/voice-blind-test-results.md), so this server and the brain
+server run together on the 16 GB card.
 
 Non-negotiables baked into this service:
 
@@ -32,8 +36,12 @@ From Windows (PowerShell or Git Bash). Loopback binding is mandatory (see
 above); WSL2 forwards `127.0.0.1` to Windows automatically:
 
 ```powershell
-wsl -d Ubuntu-24.04 -- bash -c 'cd /mnt/c/Users/Jamie/lky-avatar/services/tts_server && ~/tts-chatterbox/bin/python -m uvicorn app:app --host 127.0.0.1 --port 8100 --log-level info'
+wsl -d Ubuntu-24.04 -- bash -c 'cd /mnt/c/Users/Jamie/lky-avatar/services/tts_server && LKY_TTS_T3=~/lky-voice-models/t3_lky_lora_e14.safetensors ~/tts-chatterbox/bin/python -m uvicorn app:app --host 127.0.0.1 --port 8100 --log-level info'
 ```
+
+`LKY_TTS_T3` is the production voice (fine-tuned t3, LoRA merged); omit it
+to serve the stock zero-shot voice (e.g. for A/B comparisons). `/health`
+reports which is loaded (`t3=t3_lky_lora_e14` vs `t3=stock`).
 
 Model load + warmup takes ~1 minute; the server accepts requests only after
 the log prints `tts server ready`. If Windows→WSL localhost forwarding ever
@@ -44,10 +52,11 @@ Environment knobs (all optional):
 
 | var | default | meaning |
 |---|---|---|
+| `LKY_TTS_T3` | *(unset = stock)* | path to a merged fine-tuned t3 safetensors; production uses `~/lky-voice-models/t3_lky_lora_e14.safetensors` (lky-voice #8) — strict load, refuses to start on any mismatch |
 | `LKY_TTS_REF` | `assets/voices/elder/elder_ref_01.wav` | reference clip (1990-era primary; operator's A/B listen chose 1990 over the objective ranking's 2005 — swap eras here) |
 | `LKY_TTS_SEED` | `7` | torch seed per generation (reproducibility) |
 | `LKY_TTS_DEVICE` | `cuda` | torch device |
-| `LKY_TTS_SPEED` | `1.0` | server-side default delivery-speed factor; the agent sends its own per-request (`LKY_TTS_SPEED` on the agent side, default 0.85 — measured exact match to the 1990 refs' word rate is 0.81) |
+| `LKY_TTS_SPEED` | `1.0` | server-side default delivery-speed factor. With the fine-tuned t3, pacing is learned at generation time (LoRA slowed delivery ~6%; the operator's blind listen preferred it unstretched) — keep 1.0 so the time-stretch path (known echo artifact) stays idle. Stock-voice history: exact-match 0.81, recommended 0.85. |
 | `LKY_TTS_ENGINE` | `chatterbox` | `fake` = CPU-only tone generator for HTTP-contract smoke tests |
 
 ## Verify

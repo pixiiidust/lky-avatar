@@ -1,0 +1,138 @@
+{
+  "recorded_utc": "2026-07-15T18:26:23+00:00",
+  "tts_engine": "chatterbox t3=t3_lky_lora_e14 ref=elder_ref_04.wav seed=7 sr=24000",
+  "brain": "llama-server q4_k_m 14B (port 8001)",
+  "turns": [
+    {
+      "turn": 1,
+      "prompt": "Good evening. How are you tonight?",
+      "reply_chars": 149,
+      "brain_s": 0.58,
+      "synth_wall_s": 2.9,
+      "audio_s": 8.36,
+      "server_synth_s": 2.89,
+      "rtf": 0.346,
+      "tts_status": 200,
+      "vram_mib": 15634
+    },
+    {
+      "turn": 2,
+      "prompt": "What made Singapore succeed where others failed?",
+      "reply_chars": 691,
+      "brain_s": 1.64,
+      "synth_wall_s": 15.95,
+      "audio_s": 40.0,
+      "server_synth_s": 15.88,
+      "rtf": 0.397,
+      "tts_status": 200,
+      "vram_mib": 15740
+    },
+    {
+      "turn": 3,
+      "prompt": "Was the ban on chewing gum really necessary?",
+      "reply_chars": 730,
+      "brain_s": 2.97,
+      "synth_wall_s": 15.41,
+      "audio_s": 40.0,
+      "server_synth_s": 15.47,
+      "rtf": 0.387,
+      "tts_status": 200,
+      "vram_mib": 15797
+    },
+    {
+      "turn": 4,
+      "prompt": "How should a small country think about superpower rivalry?",
+      "reply_chars": 611,
+      "brain_s": 1.92,
+      "synth_wall_s": 14.78,
+      "audio_s": 40.0,
+      "server_synth_s": 14.69,
+      "rtf": 0.367,
+      "tts_status": 200,
+      "vram_mib": 15811
+    },
+    {
+      "turn": 5,
+      "prompt": "What do you make of social media and public discourse?",
+      "reply_chars": 794,
+      "brain_s": 2.36,
+      "synth_wall_s": 15.1,
+      "audio_s": 40.0,
+      "server_synth_s": 15.16,
+      "rtf": 0.379,
+      "tts_status": 200,
+      "vram_mib": 15813
+    },
+    {
+      "turn": 6,
+      "prompt": "Tell me about the water agreements with Malaysia.",
+      "reply_chars": 236,
+      "brain_s": 1.0,
+      "synth_wall_s": 5.4,
+      "audio_s": 15.2,
+      "server_synth_s": 5.34,
+      "rtf": 0.351,
+      "tts_status": 200,
+      "vram_mib": 15812
+    },
+    {
+      "turn": 7,
+      "prompt": "What keeps a government honest?",
+      "reply_chars": 774,
+      "brain_s": 2.35,
+      "synth_wall_s": 15.12,
+      "audio_s": 40.0,
+      "server_synth_s": 15.11,
+      "rtf": 0.378,
+      "tts_status": 200,
+      "vram_mib": 15778
+    },
+    {
+      "turn": 8,
+      "prompt": "Is multiculturalism engineered or organic in Singapore?",
+      "reply_chars": 413,
+      "brain_s": 1.4,
+      "synth_wall_s": 9.46,
+      "audio_s": 27.64,
+      "server_synth_s": 9.54,
+      "rtf": 0.345,
+      "tts_status": 200,
+      "vram_mib": 15793
+    },
+    {
+      "turn": 9,
+      "prompt": "What would you tell a young Singaporean entering politics?",
+      "reply_chars": 191,
+      "brain_s": 0.77,
+      "synth_wall_s": 4.61,
+      "audio_s": 12.16,
+      "server_synth_s": 4.49,
+      "rtf": 0.369,
+      "tts_status": 200,
+      "vram_mib": 15777
+    },
+    {
+      "turn": 10,
+      "prompt": "Any regrets about the hard choices you made?",
+      "reply_chars": 651,
+      "brain_s": 2.32,
+      "synth_wall_s": 14.98,
+      "audio_s": 40.0,
+      "server_synth_s": 14.99,
+      "rtf": 0.375,
+      "tts_status": 200,
+      "vram_mib": 15798
+    }
+  ],
+  "aggregate": {
+    "n_turns": 10,
+    "failures": 0,
+    "rtf_mean": 0.369,
+    "rtf_max": 0.397,
+    "vram_mib_max": 15813,
+    "gates": {
+      "rtf_max <= 0.6": true,
+      "no failures": true
+    }
+  }
+}
