@@ -12,6 +12,12 @@ synthesizes one phrase per request:
 Runs in the WSL ``~/tts-chatterbox`` venv (torch+cu130, chatterbox-tts,
 setuptools<81) — see run_real.md for the exact install/launch commands.
 
+Fine-tuned voice (lky-voice issue #8, eval-gate verdict: integrate): set
+``LKY_TTS_T3`` to a merged t3 safetensors (LoRA already folded in) and the
+engine overlays it onto the stock Chatterbox at load — same architecture,
+same zero-shot conditioning, same watermark path; /health reports the t3 tag.
+Production default: ``~/lky-voice-models/t3_lky_lora_e14.safetensors``.
+
 Security posture (spec §9 / user story 27): this process must ONLY ever bind
 127.0.0.1 — the LiveKit agent is its sole client, and nobody may reach a
 public text-in/LKY-voice-out endpoint. The launch command in run_real.md
@@ -92,7 +98,8 @@ class SynthesizeRequest(BaseModel):
 class ChatterboxEngine:
     """The real engine. Heavy imports happen here, at load time, once."""
 
-    def __init__(self, ref: pathlib.Path, seed: int, device: str) -> None:
+    def __init__(self, ref: pathlib.Path, seed: int, device: str,
+                 t3_weights: pathlib.Path | None = None) -> None:
         import torch
         from chatterbox.tts import ChatterboxTTS
 
@@ -100,10 +107,22 @@ class ChatterboxEngine:
         self.ref = ref
         self.seed = seed
         self.model = ChatterboxTTS.from_pretrained(device=device)
+        # Fine-tuned t3 overlay (LKY_TTS_T3): a full t3 state dict with the
+        # LKY LoRA merged in (lky-voice issue #8, verdict: integrate). Same
+        # architecture/vocab as the stock t3, so a strict load either succeeds
+        # completely or refuses to start — no silent half-loaded voice.
+        self.t3_tag = "stock"
+        if t3_weights is not None:
+            from safetensors.torch import load_file
+
+            self.model.t3.load_state_dict(load_file(str(t3_weights)), strict=True)
+            self.model.t3.to(device).eval()
+            self.t3_tag = t3_weights.stem
         self.sample_rate: int = int(self.model.sr)
 
     def describe(self) -> str:
-        return f"chatterbox ref={self.ref.name} seed={self.seed} sr={self.sample_rate}"
+        return (f"chatterbox t3={self.t3_tag} ref={self.ref.name} "
+                f"seed={self.seed} sr={self.sample_rate}")
 
     def synthesize(self, text: str) -> np.ndarray:
         """Text -> float32 mono waveform (PerTh watermark already embedded)."""
@@ -121,7 +140,8 @@ class FakeEngine:
 
     sample_rate = 24_000
 
-    def __init__(self, ref: pathlib.Path, seed: int, device: str) -> None:
+    def __init__(self, ref: pathlib.Path, seed: int, device: str,
+                 t3_weights: pathlib.Path | None = None) -> None:
         self.ref = ref
         self.seed = seed
 
@@ -185,9 +205,13 @@ async def _lifespan(app: FastAPI):
     seed = int(os.environ.get("LKY_TTS_SEED", "").strip() or DEFAULT_SEED)
     device = os.environ.get("LKY_TTS_DEVICE", "").strip() or "cuda"
     _default_speed = min(SPEED_MAX, max(SPEED_MIN, _env_float("LKY_TTS_SPEED", 1.0)))
+    t3_raw = os.environ.get("LKY_TTS_T3", "").strip()
+    t3_weights = pathlib.Path(t3_raw) if t3_raw else None
+    if engine_name == "chatterbox" and t3_weights is not None and not t3_weights.is_file():
+        raise RuntimeError(f"fine-tuned t3 weights not found: {t3_weights} (LKY_TTS_T3)")
 
     t0 = time.monotonic()
-    _engine = _ENGINES[engine_name](ref=ref, seed=seed, device=device)
+    _engine = _ENGINES[engine_name](ref=ref, seed=seed, device=device, t3_weights=t3_weights)
     # Warm up (first CUDA generate pays one-off graph/alloc costs) so the
     # session's first phrase doesn't.
     _engine.synthesize("Good evening.")

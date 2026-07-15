@@ -32,15 +32,26 @@ Agent-actionable work that may arrive:
 - **#12 final rig** once the operator finishes #10 — agent-able except the
   art; measure lip-sync offset (≤120 ms target) in lipSync.ts, don't tune by
   eye.
-- **lky-voice integration PR** (their ticket #7) against
-  `services/tts_server` — review like any PR; the operator's blind-A/B
-  verdict is its acceptance criterion; GPT-SoVITS output must be watermarked
-  post-hoc (standalone `perth`) to keep the §9 requirement.
+- ~~**lky-voice integration PR** (their ticket #7)~~ — **LANDED 2026-07-15**:
+  the winning voice was the Chatterbox **LoRA** (their #8 fallback arm; the
+  GPT-SoVITS arm failed the WER gate, verdicts in their docs/). Served via
+  `LKY_TTS_T3` overlay — native PerTh watermark kept (verified 1.0000 on a
+  served sample), no post-hoc perth needed. Evidence:
+  `docs/reports/tts-finetuned-integration.md`,
+  `evals/results/tts_placement_lora-e14_ad1b5a6.json`.
 - **Hosting go-live** if the operator green-lights the tunnel
   ([`docs/reports/hosting-decision.md`](reports/hosting-decision.md)).
 - Residual 3-min check: `lky.tts` error→ok flip in-session after a TTS
   restart (next time the stack is up; recovery itself verified, flip is
   unit-tested).
+
+## Parallel session: lky-voice (RESOLVED 2026-07-15 — kept for history)
+
+Endgame: transcript pass done → GPT-SoVITS release candidate lost the blind
+listen on garbled SG proper nouns (verdict: trigger-lora-arm) → Chatterbox
+LoRA arm ran same day → **blind listen 18/20 for the LoRA, verdict:
+integrate** → integration landed here (see above). Their repo's issues #7/#8
+carry the full record. The section below is the pre-resolution status.
 
 ## Parallel session: lky-voice (status as relayed 2026-07-14 night)
 
