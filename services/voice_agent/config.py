@@ -79,6 +79,9 @@ class AgentConfig:
     tts_base_url: str
     tts_speed: float
     tts_pronunciations_path: str
+    # Issue #45: Deepgram STT keyword boost for SG proper nouns. Optional
+    # JSON file of {"term": boost} merged over the built-in list.
+    stt_keywords_path: str
     # Barge-in tuning (live-session feedback 2026-07-14: interruptions
     # "sometimes worked, sometimes didn't; several tries"). The SDK default
     # requires 0.5s of continuous speech before interrupting — short
@@ -116,6 +119,9 @@ class AgentConfig:
             tts_speed=_get_float(env, "LKY_TTS_SPEED", DEFAULT_TTS_SPEED),
             tts_pronunciations_path=env.get(
                 "LKY_TTS_PRONUNCIATIONS", ""
+            ).strip(),
+            stt_keywords_path=env.get(
+                "LKY_STT_KEYWORDS", ""
             ).strip(),
             interrupt_min_duration=_get_float(
                 env, "LKY_INTERRUPT_MIN_SEC", 0.3

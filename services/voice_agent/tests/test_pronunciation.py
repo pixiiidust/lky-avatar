@@ -28,6 +28,19 @@ class TestDefaults:
         for term in ("PAP", "HDB", "ASEAN", "Hokkien", "Lee Kuan Yew"):
             assert term in keys
 
+    def test_issue45_sg_proper_nouns_have_coverage(self):
+        """Issue #45: the SG proper nouns the live session garbled must be
+        in the TTS pronunciation map (matching the STT keyword list)."""
+        keys = set(DEFAULT_PRONUNCIATIONS)
+        for term in (
+            "Toa Payoh",
+            "Ang Mo Kio",
+            "Kallang",
+            "Sembawang",
+            "NEWater",
+        ):
+            assert term in keys, f"missing pronunciation: {term}"
+
     def test_acronyms_spelled_out(self, default_map):
         assert default_map.apply("The PAP built HDB flats.") == (
             "The P. A. P. built H. D. B. flats."

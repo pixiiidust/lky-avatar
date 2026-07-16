@@ -119,10 +119,20 @@ from tts_status import (  # noqa: E402
     classify_tts_error,
 )
 from config import AgentConfig, explain_unusable, unusable_keys  # noqa: E402
+from fact_grounding import (  # noqa: E402
+    build_grounding_block,
+    load_fact_sheet,
+    retrieve,
+)
 from latency import InterruptLatency, InterruptTracker, LatencyTracker  # noqa: E402
-from persona_prompt import FEW_SHOT_TURNS, build_instructions  # noqa: E402
+from persona_prompt import (  # noqa: E402
+    FEW_SHOT_TURNS,
+    build_instructions,
+    fact_sheet_path_from_env,
+)
 from pronunciation import build_pronunciation_map  # noqa: E402
 from providers.tts import ChatterboxTTS  # noqa: E402
+from stt_keywords import build_keywords  # noqa: E402
 
 logger = logging.getLogger("lky.agent")
 
@@ -139,6 +149,32 @@ BRAIN_CONN_OPTIONS = APIConnectOptions(max_retry=0, timeout=60.0)
 
 #: Reports a brain status ("ok" | "busy" | "error") to interested parties.
 StatusReporter = Callable[[str], Awaitable[None]]
+
+
+def _last_user_text(chat_ctx: llm_types.ChatContext) -> str:
+    """Extract the latest user-role message text from a chat context.
+
+    Used by fact-grounding retrieval (issue #45) to pick the relevant
+    fact-sheet sections for the current turn. Returns "" when there is no
+    user message (e.g. the seed exemplars path, or a brand-new session).
+    """
+    msgs = list(chat_ctx.items) if hasattr(chat_ctx, "items") else []
+    for msg in reversed(msgs):
+        role = getattr(msg, "role", "")
+        if role == "user":
+            content = getattr(msg, "content", "")
+            if isinstance(content, str):
+                return content
+            # content can be a list of parts; coerce to text.
+            parts = []
+            for p in content or []:
+                txt = getattr(p, "text", None) or (
+                    p.get("text") if isinstance(p, dict) else None
+                )
+                if txt:
+                    parts.append(txt)
+            return "".join(parts)
+    return ""
 
 #: Upper bound on one text-only fallback delivery (issue #13). The text-only
 #: ``say`` forwards an already-complete string with no synthesis and no
@@ -201,6 +237,13 @@ class LKYAgent(Agent):
     before the first real user turn — the LoRA imitates demonstrated behavior
     (premise correction, clarify-first, brevity) far better than it obeys
     written rules; see docs/eval-process.md, probes D/D2.
+
+    Issue #45 fact grounding: when ``fact_sheet_path`` is set, ``llm_node``
+    retrieves the fact-sheet sections whose keywords best match the latest
+    user turn and injects them as a system message (the "trust these dates"
+    block) right before that user turn — so the brain reads the audited
+    facts before answering, without the brain server changing at all. A
+    missing/unset path is a clean no-op (the instructions are unchanged).
     """
 
     def __init__(
@@ -209,6 +252,7 @@ class LKYAgent(Agent):
         instructions: str,
         report_status: StatusReporter | None = None,
         report_tts_status: StatusReporter | None = None,
+        fact_sheet_path: str = "",
     ) -> None:
         seeded = llm_types.ChatContext.empty()
         for turn in FEW_SHOT_TURNS:
@@ -216,6 +260,12 @@ class LKYAgent(Agent):
         super().__init__(instructions=instructions, chat_ctx=seeded)
         self._report_status = report_status
         self._report_tts_status = report_tts_status
+        # Issue #45: load the fact sheet once at session start so per-turn
+        # retrieval is an in-memory keyword match, not a file read. Empty
+        # path -> no grounding (clean no-op).
+        self._fact_sections = (
+            load_fact_sheet(fact_sheet_path) if fact_sheet_path else []
+        )
         # Serializes text-only fallback deliveries (issue #13) and keeps
         # strong references to their tasks so they aren't GC-cancelled.
         self._text_only_lock = asyncio.Lock()
@@ -243,23 +293,31 @@ class LKYAgent(Agent):
         tools: list[llm_types.Tool],
         model_settings: ModelSettings,
     ) -> AsyncIterator[llm_types.ChatChunk | str]:
-        """Default LLM node + brain busy/unreachable handling.
+        """Default LLM node + brain busy/unreachable handling + fact grounding.
 
         Mirrors ``Agent.default.llm_node`` (stream the configured LLM) but
         with no-retry conn options and a catch that turns API failures into
         a spoken, transcribed message instead of a crashed turn. The message
         is yielded through the normal pipeline, so it IS retained in history
         — which is correct: it is exactly what the visitor heard.
+
+        Issue #45: before the LLM call, the latest user turn is used to
+        retrieve relevant fact-sheet sections and inject them as a system
+        message immediately before that turn. This is a per-turn, in-place
+        copy of the chat context — the session's accumulated history is
+        not mutated. Empty fact sheet / no match -> unchanged context.
         """
         activity = self._get_activity_or_raise()
         assert activity.llm is not None, "llm_node called but no LLM available"
         assert isinstance(activity.llm, llm_types.LLM)
         tool_choice = model_settings.tool_choice if model_settings else NOT_GIVEN
 
+        grounded_ctx = self._grounded_chat_ctx(chat_ctx)
+
         answered = False
         try:
             async with activity.llm.chat(
-                chat_ctx=chat_ctx,
+                chat_ctx=grounded_ctx,
                 tools=tools,
                 tool_choice=tool_choice,
                 conn_options=BRAIN_CONN_OPTIONS,
@@ -278,6 +336,30 @@ class LKYAgent(Agent):
             )
             await self._publish_status(failure.status)
             yield failure.message
+
+    def _grounded_chat_ctx(
+        self, chat_ctx: llm_types.ChatContext
+    ) -> llm_types.ChatContext:
+        """Return a copy of ``chat_ctx`` with the fact-grounding block
+        injected as a system message immediately before the latest user
+        turn (issue #45).
+
+        No-op when the fact sheet is empty or no section matches the turn:
+        the original context is returned unchanged (not a copy) so the
+        brain sees exactly what it sees today. The copy is made only when
+        there is something to inject, so the common path stays cheap.
+        """
+        if not self._fact_sections:
+            return chat_ctx
+        user_text = _last_user_text(chat_ctx)
+        if not user_text:
+            return chat_ctx
+        block = build_grounding_block(retrieve(user_text, self._fact_sections))
+        if not block:
+            return chat_ctx
+        ctx = chat_ctx.copy()
+        ctx.add_message(role="system", content=block)
+        return ctx
 
     async def _default_tts_node(
         self,
@@ -450,6 +532,7 @@ async def entrypoint(ctx: JobContext) -> None:
     instructions = build_instructions(
         config.lky_sim_date, config.lky_prompt_variant
     )
+    fact_sheet_path = fact_sheet_path_from_env(os.environ)
 
     session: AgentSession = AgentSession(
         vad=ctx.proc.userdata["vad"],
@@ -457,6 +540,7 @@ async def entrypoint(ctx: JobContext) -> None:
             model=config.stt_model,
             api_key=config.deepgram_api_key,
             interim_results=True,  # live interim transcripts in the browser
+            keywords=build_keywords(config.stt_keywords_path or None),
         ),
         # The one client that reaches the brain (or any OpenAI-compatible
         # stand-in) — see build_llm.
@@ -541,6 +625,7 @@ async def entrypoint(ctx: JobContext) -> None:
             instructions=instructions,
             report_status=report_status,
             report_tts_status=report_tts_status,
+            fact_sheet_path=fact_sheet_path,
         ),
         room=ctx.room,
         room_output_options=RoomOutputOptions(
@@ -595,6 +680,25 @@ def main() -> None:
         try:
             build_pronunciation_map(config.tts_pronunciations_path or None)
         except (OSError, ValueError) as exc:
+            print(f"Cannot start the voice agent: {exc}", file=sys.stderr)
+            raise SystemExit(1) from None
+
+    # Fail fast on a bad LKY_STT_KEYWORDS file (issue #45) — same reason.
+    if config.stt_keywords_path:
+        try:
+            build_keywords(config.stt_keywords_path)
+        except (OSError, ValueError) as exc:
+            print(f"Cannot start the voice agent: {exc}", file=sys.stderr)
+            raise SystemExit(1) from None
+
+    # Fail fast on a bad LKY_FACT_SHEET path (issue #45) — a missing
+    # fact sheet should surface at startup, not silently disable
+    # grounding mid-session. An explicit empty value disables grounding.
+    sheet_path = fact_sheet_path_from_env(os.environ)
+    if sheet_path:
+        try:
+            load_fact_sheet(sheet_path)
+        except OSError as exc:
             print(f"Cannot start the voice agent: {exc}", file=sys.stderr)
             raise SystemExit(1) from None
 
