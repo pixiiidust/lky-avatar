@@ -13,6 +13,29 @@ Start with these docs:
   serving stack are evaluated (question sets, judging rubric, prompt-variant
   history, benchmark baseline)
 
+## Replicating this for your own persona
+
+Everything LKY-specific plugs into a generic seam, so the same stack can
+front a different persona:
+
+- **Brain**: any OpenAI-compatible endpoint works (`OPENAI_BASE_URL`). This
+  project serves its own QLoRA fine-tune; substitute a hosted model or your
+  own fine-tune without code changes.
+- **Voice**: `TTS_PROVIDER=deepgram` is fully stock. The cloned-voice path
+  needs your own reference clips (never committed) and, optionally, your own
+  fine-tune — the [lky-voice](https://github.com/pixiiidust/lky-voice) repo
+  documents that pipeline end to end.
+- **Facts**: point `LKY_FACT_SHEET` at your own audited fact sheet; the
+  format is plain sectioned markdown.
+- **Avatar**: drop your own portrait frames in `web/public/avatar/` or rig
+  a Live2D model.
+
+Performance numbers quoted in this README and in `docs/reports/` were
+measured on the reference machine: Windows 11 + WSL2, RTX 5070 Ti (16 GB),
+with brain and TTS sharing the one GPU. The runbooks (`run_real.md` files,
+`docs/reports/serving-upgrade.md`) keep that machine's absolute paths as a
+working record — adapt paths to your environment when following them.
+
 ## Running the walking skeleton
 
 The walking skeleton (issue #4) is the full voice loop built from stock
@@ -128,8 +151,9 @@ Numbers, method, parity evidence, and the GGUF regeneration runbook are in
 
 **Production (llama.cpp, native Windows, loads in ~4 s).** The launch
 command is in
-[`docs/reports/serving-upgrade.md`](docs/reports/serving-upgrade.md)
-(model: `C:\Users\Jamie\lky-avatar-serving\models\...q4_k_m.gguf`). Confirm:
+[`docs/reports/serving-upgrade.md`](docs/reports/serving-upgrade.md);
+point `-m` at your own GGUF file (this project uses a Q4_K_M quant of its
+fine-tuned 14B model). Confirm:
 
 ```bash
 curl -s http://127.0.0.1:8001/health   # {"status":"ok"}
@@ -211,7 +235,8 @@ client are unchanged. On top of the skeleton behavior you should see:
 Issue #8 swaps the stock Deepgram voice for the cloned elder LKY voice. The
 blind-test winner was Chatterbox (issue #7). Since 2026-07-15 the server
 carries the **fine-tuned** version of that voice: a LoRA trained on his real
-speech in the [`lky-voice`](../lky-voice) sister repo. It won the eval gate
+speech in the [lky-voice](https://github.com/pixiiidust/lky-voice) sister
+repo. It won the eval gate
 on an 18/20 operator blind listen and loads via the `LKY_TTS_T3` weights
 overlay. Details:
 [`docs/reports/tts-finetuned-integration.md`](docs/reports/tts-finetuned-integration.md).
