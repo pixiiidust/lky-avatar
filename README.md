@@ -160,6 +160,30 @@ Optional persona knobs, with defaults built in:
   [`docs/eval-process.md`](docs/eval-process.md).
 - `LKY_MAX_TOKENS=320` is the spoken-answer budget.
 
+### Fact grounding (on by default)
+
+The persona fine-tune teaches style, not facts, and it will confidently
+invent biography if left alone. Issue #45 added a grounding layer in the
+agent. Each turn, the agent matches your question against an audited fact
+sheet ([`assets/persona/lky_facts.md`](assets/persona/lky_facts.md):
+constituencies, offices, HDB/water/independence timelines, with sources).
+The best-matching sections are injected into the context just before your
+question, behind a "trust these dates over your memory" instruction and an
+uncertainty guardrail. The brain server is untouched. Deepgram also gets a
+Singapore proper-noun boost, so names like Toa Payoh transcribe correctly
+on the way in.
+
+Knobs:
+
+- `LKY_FACT_SHEET`: path to the fact sheet. Defaults to the committed
+  sheet. Set it to an empty string to disable grounding.
+- `LKY_STT_KEYWORDS=<path.json>`: extra STT keyword boosts merged over the
+  built-in Singapore list.
+
+A fact-anchored eval subset measures the effect:
+`evals/fact_grounding_questions.json` via
+`scripts/run_timetravel_eval_http.py --questions-file ... --with-grounding`.
+
 ### 3. Run the agent as before
 
 Restart the voice agent (`python agent.py dev`). The token server and web
