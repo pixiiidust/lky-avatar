@@ -101,10 +101,56 @@ def build_keywords(
     keywords_path: str | Path | None = None,
 ) -> list[tuple[str, float]]:
     """The defaults, optionally overlaid with a JSON file, as the
-    ``(term, boost)`` tuple list Deepgram's STT expects."""
+    ``(term, boost)`` tuple list Deepgram's STT expects.
+
+    NOTE: this is the Nova-2 / Enhanced / Base parameter shape. The pinned
+    livekit-plugins-deepgram 1.6.5 DEFAULT model is ``nova-3``, and passing
+    ``keywords`` to a Nova-3 STT raises ``ValueError: ... For Nova-3, use
+    Keyterm Prompting.`` Use :func:`build_keyterms` for the Nova-3 path.
+    """
     if not keywords_path:
         merged = dict(DEFAULT_KEYWORDS)
     else:
         extra = load_overrides(keywords_path)
         merged = merge_overrides(DEFAULT_KEYWORDS, extra)
     return [(term, boost) for term, boost in merged.items()]
+
+
+def build_keyterms(
+    keywords_path: str | Path | None = None,
+) -> list[str]:
+    """The Nova-3 keyterm list: the terms from :func:`build_keywords` (with
+    overrides applied), as the bare string list Deepgram's ``keyterm``
+    parameter expects.
+
+    Deepgram's Nova-3 model does NOT accept the ``(term, boost)`` tuple
+    ``keywords`` parameter — the pinned plugin raises ``ValueError`` at
+    construction time. Nova-3 instead biases recognition via ``keyterm``
+    (a ``str | list[str]`` of terms, no boost value). This function is the
+    model-aware adapter the voice agent uses for the default Nova-3 path.
+    The same SG proper-noun set is reused so input transcription and output
+    synthesis still agree on spelling (the TTS pronunciation map is seeded
+    from the same names).
+    """
+    return [term for term, _ in build_keywords(keywords_path)]
+
+
+def build_stt_boost_args(
+    model: str,
+    keywords_path: str | Path | None = None,
+) -> dict:
+    """Model-aware adapter returning the right Deepgram STT boost kwargs for
+    the pinned livekit-plugins-deepgram 1.6.5.
+
+    - ``nova-3`` (the repo default): ``{"keyterm": [...]}`` — Nova-3 rejects
+      the ``(term, boost)`` ``keywords`` param with ``ValueError`` and only
+      accepts the bare-term ``keyterm`` list.
+    - any other model (nova-2 / enhanced / base): ``{"keywords": [...]}`` —
+      the ``(term, boost)`` tuple shape.
+
+    Returns the kwargs dict ready to splat into ``deepgram.STT(...)``.
+    """
+    model_l = (model or "").lower()
+    if model_l.startswith("nova-3"):
+        return {"keyterm": build_keyterms(keywords_path)}
+    return {"keywords": build_keywords(keywords_path)}

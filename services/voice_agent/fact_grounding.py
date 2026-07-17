@@ -34,7 +34,9 @@ Design choices:
 
 Extension: point ``LKY_FACT_SHEET`` at a different markdown file to swap
 the grounding source. The section format (``## Section: <title>`` followed
-by a body, separated by ``---``) is the only contract.
+by a body, separated by ``---``) is the only contract. An optional
+``> keywords: ...`` metadata line after the header adds explicit aliases
+(synonyms, lowercase common nouns) to a section's keyword set.
 """
 
 from __future__ import annotations
@@ -81,10 +83,26 @@ def default_fact_sheet_path(repo_root: str | Path) -> Path:
 _SECTION_HEADER_RE = re.compile(r"^##\s+Section:\s*(.+?)\s*$", re.MULTILINE)
 _SECTION_SPLIT_RE = re.compile(r"^---\s*$", re.MULTILINE)
 
+#: Optional metadata line: ``> keywords: wife, spouse, independent`` —
+#: explicit aliases a section author can add so turns using synonyms or
+#: lowercase common nouns still retrieve the section. Parsed from the
+#: first lines after the section header. Comma-separated, lowercased.
+_KEYWORDS_META_RE = re.compile(r"^>\s*keywords:\s*(.+?)\s*$", re.MULTILINE)
+
 #: Title/body words with no retrieval signal — dropped from keywords.
 _STOPWORDS = {
     "and", "the", "of", "a", "an", "in", "on", "for", "to", "with",
     "basics", "section", "selected", "key",
+    # common pronouns / short function words that the body proper-noun
+    # extractor would otherwise pick up (they are Capitalized at sentence
+    # starts) and pollute overlap scores with spurious matches.
+    "he", "she", "it", "its", "they", "their", "we", "us", "our",
+    "by", "if", "not", "under", "neither", "his", "her", "was", "had",
+    "has", "been", "from", "is", "be", "this", "that", "but",
+    # sentence-start capitals of common verbs the proper-noun extractor
+    # would otherwise capture (e.g. "Do not conflate" -> "do" matching
+    # "what do you think"). Short function words offer no retrieval signal.
+    "do", "so", "no", "or", "as", "at", "an",
 }
 
 
@@ -112,8 +130,21 @@ def _extract_keywords(title: str, body: str) -> tuple[str, ...]:
     capitalized / notable proper nouns in the body. We intentionally do
     not try to be clever — overlap scoring just needs a signal, and the
     section count is small. Plural proper nouns (e.g. "constituencies")
-    also emit their singular form so "constituency" in a turn matches."""
+    also emit their singular form so "constituency" in a turn matches.
+
+    An optional ``> keywords: ...`` metadata line (parsed from ``body``
+    first) adds explicit, comma-separated aliases (lowercased) to the
+    set — the escape hatch for synonyms and lowercase common nouns the
+    body extractor would miss (e.g. "wife" for the Family section)."""
     words: list[str] = []
+    # Explicit aliases from the optional ``> keywords:`` metadata line.
+    meta = _KEYWORDS_META_RE.search(body)
+    if meta:
+        for w in re.findall(r"[A-Za-z]+", meta.group(1)):
+            wl = w.lower()
+            if wl in _STOPWORDS or len(wl) < 3:
+                continue
+            words.append(wl)
     for w in re.findall(r"[A-Za-z]+", title):
         wl = w.lower()
         if wl in _STOPWORDS or len(wl) < 3:
@@ -122,7 +153,10 @@ def _extract_keywords(title: str, body: str) -> tuple[str, ...]:
     # Body proper nouns (Capitalized words) plus explicit acronyms
     # (all-caps >=2 letters). Lowercased for matching.
     for m in re.finditer(r"\b([A-Z][a-z]+|[A-Z]{2,})\b", body):
-        words.append(m.group(1).lower())
+        wl = m.group(1).lower()
+        if wl in _STOPWORDS:
+            continue
+        words.append(wl)
     # Dedup, preserve order, and add singular forms for plural words so a
     # turn saying "constituency" matches the keyword "constituencies".
     seen: set[str] = set()

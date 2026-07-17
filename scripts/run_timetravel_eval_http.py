@@ -52,6 +52,14 @@ DEFAULT_QUESTIONS_PATH = REPO_ROOT / "evals" / "timetravel_questions.json"
 FACT_GROUNDING_QUESTIONS_PATH = (
     REPO_ROOT / "evals" / "fact_grounding_questions.json"
 )
+#: The argparse ``--questions`` default (see ``main``). When the user omits
+#: ``--questions`` but passes ``--questions-file`` pointing at a custom file
+#: whose IDs do not include these (e.g. fact_grounding_questions.json with
+#: f01–f12), we treat the default as "omitted" and select all the file's
+#: questions — otherwise the eval fails before HTTP with ``unknown question
+#: ids``. See :func:`select_questions`.
+DEFAULT_QUESTION_IDS = ["q18", "q19", "q20", "q01", "q05"]
+DEFAULT_QUESTION_IDS_ARG = ",".join(DEFAULT_QUESTION_IDS)
 PRESENT_DATE_DEFAULT = "2026-07-13"
 SEED_BASE = 20260713
 
@@ -91,12 +99,72 @@ def complete(base_url: str, model: str, messages: list, max_tokens: int,
     }
 
 
+def select_questions(
+    data: dict,
+    questions_arg: str,
+    questions_path: pathlib.Path,
+) -> list[dict]:
+    """Resolve the question subset the eval should run.
+
+    Issue #45 fix: when ``--questions`` is omitted/empty, the selection
+    depends on the questions file:
+
+    - DEFAULT questions file (timetravel_questions.json): keep the existing
+      default behavior — run the adversarial probe subset q18,q19,q20,q01,q05.
+      This preserves backward compatibility for the standing persona eval.
+    - A CUSTOM ``--questions-file`` (e.g. fact_grounding_questions.json with
+      f01–f12): select ALL the file's questions. The old default IDs
+      (q18/q19/q20/q01/q05) do not exist in a custom file, so the eval
+      failed before HTTP with ``unknown question ids``. Selecting all of a
+      custom file's questions is the sane default for the fact-grounding
+      subset, which is small and meant to be run whole.
+
+    The CLI's ``--questions`` argparse default is the standing probe ID
+    string (``DEFAULT_QUESTION_IDS_ARG``), NOT empty — so "omitted" means
+    either an empty string OR the default ID string against a custom file
+    where none of those IDs exist. The latter is the actual production
+    failure: the user runs ``--questions-file evals/fact_grounding_questions.json``
+    without ``--questions``, argparse fills in the default IDs, and the
+    eval dies before HTTP. We detect that shape and treat it as omitted.
+
+    When ``--questions`` is explicitly given with IDs that DO exist in the
+    file, it is honored regardless of file (with unknown IDs still
+    erroring). Returns the ordered list of question dicts.
+    """
+    all_qs = data["questions"]
+    by_id = {q["id"]: q for q in all_qs}
+
+    wanted = [w.strip() for w in (questions_arg or "").split(",") if w.strip()]
+
+    # Detect the "omitted in practice" case: empty, OR the argparse default
+    # ID string against a custom file where NONE of those default IDs exist.
+    is_omitted = not wanted or (
+        wanted == DEFAULT_QUESTION_IDS
+        and questions_path != DEFAULT_QUESTIONS_PATH
+        and not any(w in by_id for w in wanted)
+    )
+
+    if wanted and not is_omitted:
+        # Explicit IDs that exist — honor them. Unknown IDs still error.
+        missing = [w for w in wanted if w not in by_id]
+        if missing:
+            raise SystemExit(f"unknown question ids: {missing}")
+        return [by_id[w] for w in wanted]
+
+    # Omitted in practice: default behavior depends on the file.
+    if questions_path == DEFAULT_QUESTIONS_PATH:
+        # Preserve the standing persona-eval default probe subset.
+        return [by_id[i] for i in DEFAULT_QUESTION_IDS if i in by_id]
+    # Custom file with omitted --questions: run ALL its questions.
+    return list(all_qs)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(
         description="Time-travel persona eval via an OpenAI-compatible server")
     ap.add_argument("--base-url", default="http://127.0.0.1:8001")
     ap.add_argument("--model", default="lky")
-    ap.add_argument("--questions", default="q18,q19,q20,q01,q05",
+    ap.add_argument("--questions", default=DEFAULT_QUESTION_IDS_ARG,
                     help="comma-separated question ids")
     ap.add_argument("--questions-file", default="",
                     help="path to a questions JSON (defaults to "
@@ -141,16 +209,13 @@ def main() -> None:
         sheet = default_fact_sheet_path(REPO_ROOT)
         grounding_sections = load_fact_sheet(sheet)
 
-    wanted = [w.strip() for w in args.questions.split(",") if w.strip()]
-    by_id = {q["id"]: q for q in data["questions"]}
-    missing = [w for w in wanted if w not in by_id]
-    if missing:
-        raise SystemExit(f"unknown question ids: {missing}")
-    qs = [by_id[w] for w in wanted]
-
+    qs = select_questions(data, args.questions, questions_path)
+    wanted = [q["id"] for q in qs]
     print(f"eval via {base_url} — {len(qs)} question(s), variant "
           f"{args.variant} (+exemplars={not args.no_exemplars}, "
           f"+style_policy={not args.no_style_policy})")
+    if wanted:
+        print(f"questions: {wanted}")
     print(f"system prompt: {system!r}")
 
     results = []

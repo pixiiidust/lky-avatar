@@ -132,7 +132,7 @@ from persona_prompt import (  # noqa: E402
 )
 from pronunciation import build_pronunciation_map  # noqa: E402
 from providers.tts import ChatterboxTTS  # noqa: E402
-from stt_keywords import build_keywords  # noqa: E402
+from stt_keywords import build_stt_boost_args  # noqa: E402
 
 logger = logging.getLogger("lky.agent")
 
@@ -155,25 +155,25 @@ def _last_user_text(chat_ctx: llm_types.ChatContext) -> str:
     """Extract the latest user-role message text from a chat context.
 
     Used by fact-grounding retrieval (issue #45) to pick the relevant
-    fact-sheet sections for the current turn. Returns "" when there is no
+    fact-sheet sections for the current turn. Returns ``""`` when there is no
     user message (e.g. the seed exemplars path, or a brand-new session).
+
+    The pinned livekit-agents 1.6.5 ``ChatContext.add_message`` stores
+    ``content`` as a ``list[ChatContent]`` — even when a ``str`` is passed,
+    it is wrapped as ``[content]``. A bare ``str`` content is therefore never
+    stored; the parts are ``str`` | ``ImageContent`` | ``AudioContent``.
+    ``ChatMessage.text_content`` already joins the ``str`` parts with a
+    newline (``raw_text_content`` in chat_context.py), so we delegate to it
+    instead of hand-rolling a fragile parts walk that silently misses the
+    ``list[str]`` shape the SDK actually produces in production.
     """
     msgs = list(chat_ctx.items) if hasattr(chat_ctx, "items") else []
     for msg in reversed(msgs):
-        role = getattr(msg, "role", "")
-        if role == "user":
-            content = getattr(msg, "content", "")
-            if isinstance(content, str):
-                return content
-            # content can be a list of parts; coerce to text.
-            parts = []
-            for p in content or []:
-                txt = getattr(p, "text", None) or (
-                    p.get("text") if isinstance(p, dict) else None
-                )
-                if txt:
-                    parts.append(txt)
-            return "".join(parts)
+        if getattr(msg, "role", "") == "user":
+            # text_content joins all str parts; None when there is no text
+            # part (e.g. an image-only turn). Either way ``""`` is the
+            # retrieval signal for "no usable user text this turn".
+            return getattr(msg, "text_content", None) or ""
     return ""
 
 #: Upper bound on one text-only fallback delivery (issue #13). The text-only
@@ -341,13 +341,22 @@ class LKYAgent(Agent):
         self, chat_ctx: llm_types.ChatContext
     ) -> llm_types.ChatContext:
         """Return a copy of ``chat_ctx`` with the fact-grounding block
-        injected as a system message immediately before the latest user
-        turn (issue #45).
+        injected as a system message immediately BEFORE the latest user
+        turn (issue #45) — matching the documented contract that the brain
+        reads the audited facts before answering the turn, not after.
 
         No-op when the fact sheet is empty or no section matches the turn:
         the original context is returned unchanged (not a copy) so the
         brain sees exactly what it sees today. The copy is made only when
         there is something to inject, so the common path stays cheap.
+
+        Ordering uses ``ChatContext.insert`` with a ``created_at`` set
+        just-before the latest user turn, so the grounding system message
+        lands after the seeded persona/exemplars and immediately before the
+        current user turn — verified against livekit-agents 1.6.5
+        (``find_insertion_index`` is strictly-ordered by ``created_at``).
+        Appending (``add_message``) would put the block AFTER the user turn,
+        which is wrong: the brain must read the facts first.
         """
         if not self._fact_sections:
             return chat_ctx
@@ -358,7 +367,24 @@ class LKYAgent(Agent):
         if not block:
             return chat_ctx
         ctx = chat_ctx.copy()
-        ctx.add_message(role="system", content=block)
+        # Find the latest user message's created_at and place the grounding
+        # block a hair before it so insert() lands it immediately ahead.
+        msgs = list(ctx.items)
+        user_created_at: float | None = None
+        for msg in reversed(msgs):
+            if getattr(msg, "role", "") == "user":
+                user_created_at = getattr(msg, "created_at", None)
+                break
+        if user_created_at is None:
+            # No user turn with a usable created_at — fall back to a plain
+            # append so grounding still reaches the brain (degraded order,
+            # but never a silent no-op).
+            ctx.add_message(role="system", content=block)
+            return ctx
+        grounding_msg = llm_types.ChatMessage(
+            role="system", content=[block], created_at=user_created_at - 1e-6
+        )
+        ctx.insert(grounding_msg)
         return ctx
 
     async def _default_tts_node(
@@ -540,7 +566,14 @@ async def entrypoint(ctx: JobContext) -> None:
             model=config.stt_model,
             api_key=config.deepgram_api_key,
             interim_results=True,  # live interim transcripts in the browser
-            keywords=build_keywords(config.stt_keywords_path or None),
+            # Issue #45: Nova-3 (the pinned default) rejects the
+            # (term, boost) ``keywords`` param with ValueError; the
+            # model-aware adapter picks ``keyterm`` for Nova-3 and
+            # ``keywords`` for every other model. Verified against
+            # livekit-plugins-deepgram 1.6.5.
+            **build_stt_boost_args(
+                config.stt_model, config.stt_keywords_path or None
+            ),
         ),
         # The one client that reaches the brain (or any OpenAI-compatible
         # stand-in) — see build_llm.
@@ -686,7 +719,7 @@ def main() -> None:
     # Fail fast on a bad LKY_STT_KEYWORDS file (issue #45) — same reason.
     if config.stt_keywords_path:
         try:
-            build_keywords(config.stt_keywords_path)
+            build_stt_boost_args(config.stt_model, config.stt_keywords_path)
         except (OSError, ValueError) as exc:
             print(f"Cannot start the voice agent: {exc}", file=sys.stderr)
             raise SystemExit(1) from None
