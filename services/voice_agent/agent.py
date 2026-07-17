@@ -350,13 +350,15 @@ class LKYAgent(Agent):
         brain sees exactly what it sees today. The copy is made only when
         there is something to inject, so the common path stays cheap.
 
-        Ordering uses ``ChatContext.insert`` with a ``created_at`` set
-        just-before the latest user turn, so the grounding system message
-        lands after the seeded persona/exemplars and immediately before the
-        current user turn — verified against livekit-agents 1.6.5
-        (``find_insertion_index`` is strictly-ordered by ``created_at``).
-        Appending (``add_message``) would put the block AFTER the user turn,
-        which is wrong: the brain must read the facts first.
+        Ordering inserts by INDEX, not by ``created_at``: the pinned
+        livekit-agents 1.6.5 ``ChatContext.items`` is the live list, so the
+        block is placed directly at the latest user turn's position. A
+        timestamp-based ``ChatContext.insert`` (the first attempt) is not
+        deterministic here — Windows' ~15.6 ms clock tick gives adjacent
+        messages identical ``created_at`` values, and the block could land
+        before the preceding assistant turn. Appending (``add_message``)
+        would put the block AFTER the user turn, which is wrong: the brain
+        must read the facts first.
         """
         if not self._fact_sections:
             return chat_ctx
@@ -367,24 +369,23 @@ class LKYAgent(Agent):
         if not block:
             return chat_ctx
         ctx = chat_ctx.copy()
-        # Find the latest user message's created_at and place the grounding
-        # block a hair before it so insert() lands it immediately ahead.
-        msgs = list(ctx.items)
-        user_created_at: float | None = None
-        for msg in reversed(msgs):
-            if getattr(msg, "role", "") == "user":
-                user_created_at = getattr(msg, "created_at", None)
+        items = ctx.items
+        user_idx: int | None = None
+        for i in range(len(items) - 1, -1, -1):
+            if getattr(items[i], "role", "") == "user":
+                user_idx = i
                 break
-        if user_created_at is None:
-            # No user turn with a usable created_at — fall back to a plain
-            # append so grounding still reaches the brain (degraded order,
-            # but never a silent no-op).
+        if user_idx is None:
+            # No user turn found — fall back to a plain append so grounding
+            # still reaches the brain (degraded order, never a silent no-op).
             ctx.add_message(role="system", content=block)
             return ctx
         grounding_msg = llm_types.ChatMessage(
-            role="system", content=[block], created_at=user_created_at - 1e-6
+            role="system",
+            content=[block],
+            created_at=getattr(items[user_idx], "created_at", 0.0),
         )
-        ctx.insert(grounding_msg)
+        items.insert(user_idx, grounding_msg)
         return ctx
 
     async def _default_tts_node(

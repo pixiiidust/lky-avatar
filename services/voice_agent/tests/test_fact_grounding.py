@@ -164,7 +164,8 @@ def test_build_instructions_with_real_grounding_preserves_persona_and_style():
 
 def test_fact_sheet_path_from_env_defaults_to_committed_sheet():
     path = fact_sheet_path_from_env({})
-    assert path.endswith("assets/persona/lky_facts.md")
+    # Compare as Path parts, not a substring: Windows returns backslashes.
+    assert Path(path).parts[-3:] == ("assets", "persona", "lky_facts.md")
     assert Path(path).is_file()
 
 
@@ -175,4 +176,4 @@ def test_fact_sheet_path_from_env_explicit_disable():
 
 def test_fact_sheet_path_from_env_custom_relative():
     path = fact_sheet_path_from_env({"LKY_FACT_SHEET": "evals/foo.md"})
-    assert path.endswith("evals/foo.md")
+    assert Path(path).parts[-2:] == ("evals", "foo.md")
