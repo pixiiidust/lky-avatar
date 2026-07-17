@@ -27,8 +27,10 @@ Everything LKY-specific plugs into a generic seam, so the same stack can
 front a different persona:
 
 - **Brain**: any OpenAI-compatible endpoint works (`OPENAI_BASE_URL`). This
-  project serves its own QLoRA fine-tune; substitute a hosted model or your
-  own fine-tune without code changes.
+  project serves its own QLoRA fine-tune of Qwen3-14B, built in the
+  [lky-brain](https://github.com/pixiiidust/lky-brain) repo (give a small
+  local model a domain expert's reasoning style). Substitute a hosted model
+  or your own fine-tune without code changes.
 - **Voice**: `TTS_PROVIDER=deepgram` is fully stock. The cloned-voice path
   needs your own reference clips (never committed) and, optionally, your own
   fine-tune — the [lky-voice](https://github.com/pixiiidust/lky-voice) repo
@@ -142,8 +144,10 @@ the same guidance.
 
 ## Running with the LKY brain
 
-Issue #6 swaps the skeleton's stock LLM for the self-hosted LKY brain. The
-browser conversation is then answered *in the LKY persona*. The swap is pure
+Issue #6 swaps the skeleton's stock LLM for the self-hosted LKY brain: a
+QLoRA fine-tune of Qwen3-14B trained in the
+[lky-brain](https://github.com/pixiiidust/lky-brain) repo. The browser
+conversation is then answered *in the LKY persona*. The swap is pure
 configuration, with no code changes. Two interchangeable brain servers sit
 behind the same OpenAI-compatible seam:
 
