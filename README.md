@@ -164,8 +164,12 @@ Optional persona knobs, with defaults built in:
 
 The persona fine-tune teaches style, not facts, and it will confidently
 invent biography if left alone. Issue #45 added a grounding layer in the
-agent. Each turn, the agent matches your question against an audited fact
-sheet ([`assets/persona/lky_facts.md`](assets/persona/lky_facts.md):
+agent: a deliberately minimal form of RAG (retrieval-augmented generation).
+Retrieval is keyword scoring over the sections of one audited markdown
+file. There are no embeddings and no vector store; the corpus is small
+enough that determinism and hand-auditability win. Each turn, the agent
+matches your question against the fact sheet
+([`assets/persona/lky_facts.md`](assets/persona/lky_facts.md):
 constituencies, offices, HDB/water/independence timelines, with sources).
 The best-matching sections are injected into the context just before your
 question, behind a "trust these dates over your memory" instruction and an
