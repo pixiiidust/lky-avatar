@@ -116,6 +116,26 @@ def test_build_instructions_layers_style_after_persona():
     assert style_part == SPOKEN_STYLE_POLICY
 
 
+def test_build_instructions_layers_grounding_between_persona_and_style():
+    """Issue #45: the grounding block goes BETWEEN the persona framing and
+    the spoken style policy so facts inform without flattening the voice."""
+    block = "### Facts\nTanjong Pagar was his only constituency."
+    instructions = build_instructions("2026-07-13", "B", grounding_block=block)
+    # persona framing is still first, style policy still last.
+    assert instructions.startswith(persona_system_prompt("2026-07-13", "B"))
+    assert instructions.endswith(SPOKEN_STYLE_POLICY)
+    # the grounding block is in the middle.
+    assert block in instructions
+    assert instructions.index(block) < instructions.index(SPOKEN_STYLE_POLICY)
+
+
+def test_build_instructions_empty_grounding_is_unchanged():
+    """Empty grounding block -> byte-identical to the pre-#45 instructions."""
+    a = build_instructions("2026-07-13", "B")
+    b = build_instructions("2026-07-13", "B", grounding_block="")
+    assert a == b
+
+
 def test_spoken_style_demands_brevity():
     assert "two to four sentences" in SPOKEN_STYLE_POLICY
     assert "No markdown" in SPOKEN_STYLE_POLICY

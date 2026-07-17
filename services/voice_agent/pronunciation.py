@@ -58,6 +58,14 @@ DEFAULT_PRONUNCIATIONS: dict[str, str] = {
     # Places.
     "Temasek": "Teh-mah-sek",
     "Tanjong Pagar": "Tan-jong Pah-gar",
+    # Issue #45: SG proper-noun coverage the live session garbled — the
+    # same list seeds the Deepgram STT keyword boost (agent.py) and the
+    # TTS pronunciation map so input and output agree on spelling.
+    "Toa Payoh": "Toh Pay-oh",
+    "Ang Mo Kio": "Ang Moe Kee-oh",
+    "Kallang": "Kah-lahng",
+    "Sembawang": "Sem-bah-wahng",
+    "NEWater": "New-water",
 }
 
 

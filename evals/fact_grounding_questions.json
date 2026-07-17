@@ -1,0 +1,98 @@
+{
+  "description": "Fact-anchored grounding eval for issue #45. 12 questions with known-correct answers covering the constituencies/offices/dates, HDB/water/independence/merger timeline, key policies, and family basics that the live session got wrong. Judged for FACTUAL ACCURACY separately from persona quality (in-character reasoning, voice, brevity) so the RAG layer's effect is measurable and regressions are caught. Run with scripts/run_timetravel_eval.py --variant C (or D) and fill the judgment fields by hand afterwards; this file never grades.",
+  "version": 1,
+  "signal_separation": {
+    "factual_accuracy": "yes | partial | no — does the answer contain only true dates/places/offices?",
+    "persona_quality": "yes | partial | no — is it in-character, reasonably voiced, brief?",
+    "fabrication_detected": "yes | no — did it invent a date/quote/meeting/constituency?",
+    "notes": "free text"
+  },
+  "answer_keys": {
+    "f01": "Tanjong Pagar; 1955 until death 2015; never Toa Payoh or Ang Mo Kio.",
+    "f02": "Self-government proclaimed 3 June 1959; LKY sworn in as PM 5 June 1959; served as PM until 28 November 1990; stepped down for Goh Chok Tong.",
+    "f03": "Senior Minister (1990-2004); Minister Mentor (2004-2011); retired from cabinet May 2011; remained MP until death 23 March 2015.",
+    "f04": "Home Ownership for the People scheme launched 1964; HDB established February 1960; CPF savings allowed for HDB mortgages from 1968 (separate from the 1964 scheme launch); Toa Payoh first town built solely by HDB.",
+    "f05": "Toa Payoh was the first town built solely by the HDB (plans 1961, site possession 1964, first flats ~1965-67). It is the second satellite town overall — Queenstown was first (1950s, built by the SIT). Ang Mo Kio came later (mid-1970s planning).",
+    "f06": "Separated 9 August 1965; merger was 16 September 1963; LKY wanted merger to hold; separation was forced.",
+    "f07": "9 August 1965; independence was thrust on Singapore, not won by armed struggle.",
+    "f08": "Two Water Agreements with Malaysia, signed 1961 and 1962 (1962 runs to 2061); LKY regarded water as a survival issue; NEWater + desalination later.",
+    "f09": "Bilingualism: English as working/first language plus mother tongue (Mandarin/Malay/Tamil) for identity; pushed from the 1960s.",
+    "f10": "National Service / conscription introduced 1967, about two years after independence.",
+    "f11": "Kwa Geok Choo (married 1947); partner at Lee & Lee; low public profile.",
+    "f12": "Eldest son Lee Hsien Loong (third PM from August 2004); Lee Hsien Yang; Lee Wei Ling (neurologist, daughter)."
+  },
+  "questions": [
+    {
+      "id": "f01",
+      "category": "constituency",
+      "adversarial": true,
+      "question": "What was your constituency? Did you represent Toa Payoh or Ang Mo Kio?"
+    },
+    {
+      "id": "f02",
+      "category": "offices_dates",
+      "adversarial": false,
+      "question": "How long were you Prime Minister, and when did you step down?"
+    },
+    {
+      "id": "f03",
+      "category": "offices_dates",
+      "adversarial": false,
+      "question": "What were your roles after stepping down as Prime Minister, and when did you leave cabinet?"
+    },
+    {
+      "id": "f04",
+      "category": "hdb_policy",
+      "adversarial": false,
+      "question": "When was the home ownership scheme introduced, and what was the Housing and Development Board's role?"
+    },
+    {
+      "id": "f05",
+      "category": "hdb_places",
+      "adversarial": true,
+      "question": "Which was the first major HDB satellite town — Toa Payoh or Ang Mo Kio — and roughly when?"
+    },
+    {
+      "id": "f06",
+      "category": "merger_timeline",
+      "adversarial": false,
+      "question": "When did Singapore separate from Malaysia, and when had the merger begun?"
+    },
+    {
+      "id": "f07",
+      "category": "independence",
+      "adversarial": false,
+      "question": "On what date did Singapore become independent, and was it won by armed struggle?"
+    },
+    {
+      "id": "f08",
+      "category": "water",
+      "adversarial": false,
+      "question": "What were the Water Agreements with Malaysia, and why did you treat water as a survival issue?"
+    },
+    {
+      "id": "f09",
+      "category": "policy_bilingualism",
+      "adversarial": false,
+      "question": "Why did you insist on bilingualism in Singapore's schools?"
+    },
+    {
+      "id": "f10",
+      "category": "policy_defense",
+      "adversarial": false,
+      "question": "When did you introduce National Service, and why so soon after independence?"
+    },
+    {
+      "id": "f11",
+      "category": "family",
+      "adversarial": false,
+      "question": "Tell me about your wife and her role."
+    },
+    {
+      "id": "f12",
+      "category": "family",
+      "adversarial": false,
+      "question": "Who are your children, and which one followed you into the premiership?"
+    }
+  ]
+}

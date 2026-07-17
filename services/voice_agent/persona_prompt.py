@@ -22,6 +22,12 @@ so this module is the single place the spoken persona is assembled:
    persona text itself.
 
 Pure logic: no LiveKit imports, unit-testable anywhere.
+
+Issue #45 fact grounding: ``build_instructions`` accepts an optional
+grounding block (retrieved fact-sheet sections + the "trust these dates"
+instruction) and layers it BETWEEN the persona framing and the spoken
+style policy, so the facts inform the answer without flattening the voice.
+The brain server is untouched — the agent owns the framing, as before.
 """
 
 from __future__ import annotations
@@ -35,6 +41,9 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from lky_avatar import persona  # noqa: E402  (needs the sys.path bootstrap)
+from fact_grounding import (  # noqa: E402  (same-dir module)
+    default_fact_sheet_path,
+)
 
 #: Simulated "present day" for the time-traveler framing (issue #2).
 DEFAULT_SIM_DATE = "2026-07-13"
@@ -151,7 +160,45 @@ def persona_system_prompt(
 
 
 def build_instructions(
-    date: str = DEFAULT_SIM_DATE, variant: str = DEFAULT_VARIANT
+    date: str = DEFAULT_SIM_DATE,
+    variant: str = DEFAULT_VARIANT,
+    *,
+    grounding_block: str = "",
 ) -> str:
-    """Full Agent instructions: persona framing + spoken-answer policy."""
-    return persona_system_prompt(date, variant) + "\n\n" + SPOKEN_STYLE_POLICY
+    """Full Agent instructions: persona framing + (optional) fact-grounding
+    block + spoken-answer policy.
+
+    The grounding block (issue #45) is injected BETWEEN the persona framing
+    and the spoken style policy. Empty string -> unchanged behavior (the
+    brain runs exactly as it does today); non-empty -> the audited facts and
+    the "trust these dates over your memory" instruction inform the answer
+    without flattening the voice, because the spoken style policy still
+    follows and still demands brevity and no lists.
+    """
+    parts = [persona_system_prompt(date, variant)]
+    if grounding_block:
+        parts.append(grounding_block)
+    parts.append(SPOKEN_STYLE_POLICY)
+    return "\n\n".join(parts)
+
+
+def fact_sheet_path_from_env(env) -> str:
+    """Resolve the fact-sheet path from the env.
+
+    - Key ABSENT (``LKY_FACT_SHEET`` not in env) -> the committed default
+      sheet (``assets/persona/lky_facts.md``). This is the production
+      default: grounding is ON out of the box.
+    - Key present but EMPTY (``LKY_FACT_SHEET=``) -> "" (explicitly
+      disables grounding). This is the opt-out.
+    - Key present and non-empty -> that path (relative to the repo root
+      unless absolute).
+    """
+    if "LKY_FACT_SHEET" not in env:
+        return str(default_fact_sheet_path(_REPO_ROOT))
+    raw = (env.get("LKY_FACT_SHEET", "") or "").strip()
+    if not raw:
+        return ""  # explicit disable
+    p = Path(raw)
+    if not p.is_absolute():
+        p = _REPO_ROOT / p
+    return str(p)
