@@ -5,6 +5,10 @@ Kuan Yew who is aware of the present day and answers modern questions from
 his principles. An animated portrait avatar fronts the conversation, and
 every session is honestly labeled as an AI-generated simulation.
 
+
+https://github.com/user-attachments/assets/1d5e414c-2028-4b6a-abbc-724f847361d2
+Sample Clip
+
 Start with these docs:
 
 - [`docs/spec.md`](docs/spec.md): the product definition
